@@ -23,9 +23,9 @@ To extract the genome or genes from your data, you need a reference genome. In t
 
 ### 1.1. Prepare reference 
 
-The first step is to prepare the reference files from the reference genome. For this step, you will run the script <b>prep_ref.slurm</b>. This script first builds the BWA index, which creates several files: .bwt, .sa, .amb, .ann, and .pac. Then it will create a FASTA index using samtools, which produces a .fai file (tab-separated: chromosome name, length, offset, etc.). For this script, you must make sure that you call the proper environment with conda, set the path to the reference fasta file, and set the proper working directory (main).
+The first step is to prepare the reference files from the reference genome. For this step, you will run the script <b>prep_ref.slurm</b>. This script first builds the BWA index, which creates several files: .bwt, .sa, .amb, .ann, and .pac. Then it will create a FASTA index with samtools, producing a .fai file (tab-separated: chromosome name, length, offset, etc.). For this script, you must make sure that you call the proper environment with conda, set the path to the reference fasta file, and set the proper working directory (main).
 
-All files will be save into the <b>references</b> folder.
+All files will be saved in the <b>references</b> folder.
 
 ```
 # Set working directory
@@ -40,3 +40,20 @@ REF="references/S_ludovici_QCAZ_18312.fasta"
 ```
 
 ### 1.2. Build CDS beds
+
+Now, you must run the script <b>cds_bed.slurm</b>. This script takes a GenBank (.gb) file and a matching FASTA file, extracts all CDS (coding sequence) coordinates, and converts them into BED format (0‑based, half‑open) for downstream analyses. For this script, you make sure to set the working directory, the fasta file, and the gb file of the reference genome. The output files will be saved in the <b>results</b> folder. <i>You can change the output file name if you want, but you will need to update it in subsequent steps.</i>
+
+```
+# Set working directory
+cd /scratch/odl7/sturnira_mito
+
+# Set reference paths
+REF="references/S_ludovici_QCAZ_18312.fasta"
+REFGB="references/S_ludovici_QCAZ_18312.gb"
+
+# Output path
+OUTDIR="results"
+OUTBED="$OUTDIR/cds_coords.bed"
+
+```
+
