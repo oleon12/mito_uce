@@ -10,7 +10,9 @@ main/
 ├── CONFS
 ├── ERR_OUT
 ├── LOG
-├── raw_data
-├── references
-└── results
+├── raw_data/
+│   ├── outgroups/
+│   └── UCE/
+├── references/
+└── results/
 ```
