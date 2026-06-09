@@ -16,3 +16,10 @@ main/
   ├── references/
   └── results/
 ```
+
+## 1. Reference genome
+
+To extract the genome or genes from your data, you need a reference genome. In this case, I was working with species of the genus Sturnira, so I went to GenBank and downloaded the .fasta and .gb files for a complete genome of <i>Sturnira ludovici</i>. Thus, you will need to find a reference genome and save it into the <b>references</b> folder.
+
+### 1.1. Prepare reference 
+### 1.2. Build CDS beds
