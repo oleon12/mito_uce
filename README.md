@@ -19,10 +19,10 @@ main/
 
 ## 0. Environments
 
-Before you start the guide, you must build specific environments. In fact, you must create two different environments, one for samtools, bwa, beftools, bedtools, and another for Python 2.7, blast, spades, and mitofinder-compatible packages. You need to use conda to build the two environment (.yml) files in the <b>CONFS</b> folder.
+Before you start the guide, you must build specific environments. In fact, you must create two different environments, [one](https://github.com/oleon12/mito_uce/blob/main/CONFS/environment.yml) for samtools, bwa, beftools, bedtools, and [another](https://github.com/oleon12/mito_uce/blob/main/CONFS/mitofinder_env.yml) for Python 2.7, blast, spades, and mitofinder-compatible packages. You need to use conda to build the two environment (.yml) files in the <b>CONFS</b> folder.
 
 ```
-# Make sure that you are in the main before run these lines.
+# Make sure that you are in the main before running these lines.
 
 conda env create -f CONFS/environment.yml
 conda env create -f CONFS/mitofinder_env.yml --solver=classic
@@ -70,9 +70,9 @@ OUTBED="$OUTDIR/cds_coords.bed"
 ```
 ## 2. Mapping reference
 
-Now you will run the script <b>map_all_ref.slurm</b>. This script maps paired-end reads (FASTQ) to a reference genome using BWA‑MEM, sorts the resulting BAM file, and filters to keep only mapped reads. This script uses the <b>fastq.gz</b> files and also a text file named <b>sample_list.txt</b>. This text file is in the <b>CONFS</b> folder, and it is basically the match fastq.gz file for each species. You need to create it and save it in the specific folder.
+Now you will run the script <b>map_all_ref.slurm</b>. This script maps paired-end reads (FASTQ) to a reference genome using BWA‑MEM, sorts the resulting BAM file, and filters to keep only mapped reads. This script uses the <b>fastq.gz</b> files and also a text file named [<b>sample_list.txt</b>](https://github.com/oleon12/mito_uce/blob/main/CONFS/sample_list.txt). This text file is in the <b>CONFS</b> folder and contains the match fastq.gz file for each species. You need to create it and save it in the specific folder.
 
-Example of <b>sample_list.txt</b> (be aware that the path to the fastq.gz file must be included):
+Example of [<b>sample_list.txt</b>](https://github.com/oleon12/mito_uce/blob/main/CONFS/sample_list.txt) (be aware that the path to the fastq.gz file must be included):
 
 ```
 S_angeli_AMNH_214197 raw_data/UCE/CBT03_L0074_R1.fastq.gz raw_data/UCE/CBT03_L0074_R2.fastq.gz
