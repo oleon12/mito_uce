@@ -17,6 +17,18 @@ main/
   └── results/
 ```
 
+## 0. Environments
+
+Before you start the guide, you must build specific environments. In fact, you must create two different environments, one for samtools, bwa, beftools, bedtools, and another for Python 2.7, blast, spades, and mitofinder-compatible packages. You need to use conda to build the two environment (.yml) files in the <b>CONFS</b> folder.
+
+```
+# Make sure that you are in the main before run these lines.
+
+conda env create -f CONFS/environment.yml
+conda env create -f CONFS/mitofinder_env.yml --solver=classic
+
+```
+
 ## 1. Reference genome
 
 To extract the genome or genes from your data, you need a reference genome. In this case, I was working with species of the genus Sturnira, so I went to GenBank and downloaded the .fasta and .gb files for a complete genome of <b><i>Sturnira ludovici</i></b>. Thus, you will need to find a reference genome and save it into the <b>references</b> folder.
