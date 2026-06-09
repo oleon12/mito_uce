@@ -68,7 +68,7 @@ OUTDIR="results"
 OUTBED="$OUTDIR/cds_coords.bed"
 
 ```
-## 2.Mapping reference
+## 2. Mapping reference
 
 Now you will run the script <b>map_all_ref.slurm</b>. This script maps paired-end reads (FASTQ) to a reference genome using BWA‑MEM, sorts the resulting BAM file, and filters to keep only mapped reads. This script uses the <b>fastq.gz</b> files and also a text file named <b>sample_list.txt</b>. This text file is in the <b>CONFS</b> folder, and it is basically the match fastq.gz file for each species. You need to create it and save it in the specific folder.
 
