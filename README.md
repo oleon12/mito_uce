@@ -6,13 +6,13 @@ Also, to reduce mistakes, I strongly suggest organizing your data in the followi
 
 ```
 main/
-├── BASH_SCRIPTS
-├── CONFS
-├── ERR_OUT
-├── LOG
-├── raw_data/
-│   ├── outgroups/
-│   └── UCE/
-├── references/
-└── results/
+  ├── BASH_SCRIPTS
+  ├── CONFS
+  ├── ERR_OUT
+  ├── LOG
+  ├── raw_data/
+  │   ├── outgroups/
+  │   └── UCE/
+  ├── references/
+  └── results/
 ```
