@@ -1,0 +1,11 @@
+name: mt_pipeline
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+
+dependencies:
+  - bwa=0.7.17
+  - samtools=1.17
+  - bcftools=1.17
+  - bedtools=2.31.0
