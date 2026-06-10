@@ -170,7 +170,7 @@ results/
 
 ## 4. Make Consensus
 
-Now with the <b>VCF</b> and <b>BAM</b> files, you can create a consensus fasta file using the script [<b>make_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_consensus.slurm). For this script, you will need the <b>sample_list.txt</b> and <b>references genome</b> files. All results will be saved in the <b>results</b> folder. The script automatically handles the <b>VCF</b> files for every sample/species. If you change any name from previous scripts, you will need to modify the script; if not, you are ready to go.
+Now with the <b>VCF</b> and <b>BAM</b> files, you can create a consensus fasta file using the script [<b>make_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_consensus.slurm). For this script, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. All results will be saved in the <b>results</b> folder. The script automatically handles the <b>VCF</b> files for every sample/species. If you change any name from previous scripts, you will need to modify the script; if not, you are ready to go.
 
 ```
 # Set the environment, sample list, and fasta files
@@ -204,5 +204,7 @@ S_bogotensis_AMNH_207854	results/S_bogotensis_AMNH_207854/consensus/S_bogotensis
 ```
 
 ## 5. Masked consensus
+
+Now, you can create an advanced consensus using the script [<b>make_masked_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_masked_consensus.slurm). This is an advanced consensus generation step that masks low‑coverage regions (converts them to Ns) and validates output length. Similar to the previous one, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. The script automatically handles the <b>VCF</b> and <b>BAM</b> files, and all results will be saved in the <b>results</b> folder. The parameter <b>MIN_DEPTH=3</b>
 
 ### 5.1. Test masked consensus
