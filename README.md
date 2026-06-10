@@ -313,7 +313,7 @@ sh BASH_SCRIPTS/filter_from_cds.sh
 ```
 
 
-## 7.2. Filtering from Consensus
+### 7.2. Filtering from Consensus
 
 
 Here, you will filter your data using the masked consensus summary table obtained in step 5.1. Here, you will use the script [<b>filter_from_con.sh</b>](01https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_from_con.sh) which reads a summary TSV file (consensus completeness statistics) and splits samples into "keep" and "drop" lists based on a threshold on the 6th column (percentage of N's or missing data). The parameter <b>CUTOFF</b> is the threshold, and in my case, a keep all sequences with an N's percentage above 40%. You can change this value if you like. The results are two text files saved in the <b>results</b> folder.
@@ -333,7 +333,7 @@ CUTOFF=40
 sh BASH_SCRIPTS/filter_from_con.sh
 ```
 
-## 7.3. Intersection
+### 7.3. Intersection
 
 This is the final step. The script [<b>filter_intersection.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_intersection.sh) will take the keep text files from the two previous filters and make a final list with the samples/species shared between both filtering processes. The final list will be saved in the <b>results</b> folder.
 
@@ -341,4 +341,38 @@ This is the final step. The script [<b>filter_intersection.sh</b>](https://githu
 ```
 # Run in the terminal
 sh BASH_SCRIPTS/filter_intersection.sh
+```
+<br>
+
+## 8. Rename headers
+
+Now, you will need to standardize sequence headers in the masked consensus and CDS FASTA files for all samples. This is a critical step before concatenating or aligning sequences across samples, as it ensures that headers are clean and consistent. For this, you must run two scripts, [<b>rename_fasta.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/rename_fasta.sh) and [<b>rename_fai.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/rename_fai.sh).
+
+```
+# Run in the terminal
+sh BASH_SCRIPTS/rename_fasta.sh
+
+# Run in the terminal
+sh BASH_SCRIPTS/rename_fai.sh
+
+```
+<br>
+
+## 9. Outgroups
+
+Now, you need to format the outgroups to the same format as the other sequences. For this, your outgroups will need the <b>fasta</b> and <b>GB</b> files. These files must be saved in the <b>raw_data/outgroups</b> folder. Then you run the script [<b>outgroup_from_gb.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/outgroup_from_gb.sh).
+
+```
+# Run in the terminal
+sh BASH_SCRIPTS/outgroup_from_gb.sh
+
+# Once you have finished, your outgroup folder should look like this
+
+results/
+└── Artibeus_PP853570.1/
+    ├── Artibeus_PP853570.1_cds_coords.bed
+    ├── consensus_masked/
+    ├── genes_masked/
+    └── genes_selected/
+
 ```
