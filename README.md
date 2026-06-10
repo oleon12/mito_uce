@@ -166,4 +166,43 @@ results/
 
 ---
 
+<br>
+
 ## 4. Make Consensus
+
+Now with the <b>VCF</b> and <b>BAM</b> files, you can create a consensus fasta file using the script [<b>make_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_consensus.slurm). For this script, you will need the <b>sample_list.txt</b> and <b>references genome</b> files. All results will be saved in the <b>results</b> folder. The script automatically handles the <b>VCF</b> files for every sample/species. If you change any name from previous scripts, you will need to modify the script; if not, you are ready to go.
+
+```
+# Set the environment, sample list, and fasta files
+CONDA_ENV="mt_pipeline"
+SAMPLE_LIST="CONFS/sample_list.txt"
+REF="references/S_ludovici_QCAZ_18312.fasta"
+OUTDIR="results"
+
+# In this part, the script finds the VCF files using the sample list
+# and save every consensus in individual folders
+VCF="$OUTDIR/$SAMPLE/vcf/$SAMPLE.vcf.gz"
+CONSDIR="$OUTDIR/$SAMPLE/consensus"
+CONS="$CONSDIR/${SAMPLE}_mt.fasta"
+
+```
+
+### 4.1. Test consensus
+
+Once you have finished the consensus, you can check your results using the script [<b>test_consensus.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_consensus.sh). This script will calculate the length of the sequences, count the number of N's, and the percentage of them. The information will be saved in a <b>TSV</b> file in the <b>results</b> folder.
+
+```
+# Run in the terminal
+sh BASH_SCRIPTS/test_consensus.sh
+
+cat results/consensus_stats.tsv
+
+Sample	                  FASTA	                                                                        Length	Ns	Percent_N
+S_bogotensis_AMNH_207853	results/S_bogotensis_AMNH_207853/consensus/S_bogotensis_AMNH_207853_mt.fasta	16634	  0	  0.0000
+S_bogotensis_AMNH_207854	results/S_bogotensis_AMNH_207854/consensus/S_bogotensis_AMNH_207854_mt.fasta	16640	  0	  0.0000
+
+```
+
+## 5. Masked consensus
+
+### 5.1. Test masked consensus
