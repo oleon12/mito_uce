@@ -90,4 +90,26 @@ SAMPLE_LIST="CONFS/sample_list.txt"
 REF="references/S_ludovici_QCAZ_18312.fasta"
 
 ```
+### 2.1. Test Mapping
 
+Once you have finished the mapping, you can quickly check your results by running the script [<b>test_map_ref.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_map_ref.sh). This will give you the mapped reads, covered position, and average depth.
+
+```
+# Run in the terminal
+
+sh BASH_SCRIPTS/test_map_ref.sh
+
+```
+
+### 2.2. Mapping summary
+
+Like the previous one, the script [<b>mapping_summary.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mapping_summary.slurm) provides a summary of the mapping and saves everything in a TSV file in the <b>results</b> folder. This is an example of a summary table.
+
+```
+Sample	                  Mapped_Reads	  Covered_Positions	  Average_Depth
+S_angeli_AMNH_213959	        420	              12318	            3.6620
+S_angeli_AMNH_214197	        293	              4873	            4.3567
+S_bogotensis_AMNH_207853	    3900	            16286	            15.6029
+S_bogotensis_AMNH_207854	    2975	            15947	            10.0561
+S_bogotensis_AMNH_207855	    3901	            15499	            11.4085
+```
