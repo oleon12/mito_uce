@@ -24,6 +24,7 @@ Before you start the guide, you must build specific environments. In fact, you m
 
 ```
 # Make sure that you are in the main before running these lines.
+# Run in terminal
 
 conda env create -f CONFS/environment.yml
 conda env create -f CONFS/mitofinder_env.yml --solver=classic
