@@ -376,6 +376,8 @@ results/
     └── genes_selected/
 
 ```
+<br>
+
 ## 10. Concatenation
 
 Now you will concatenate all sequences into a single <b>FASTA</b> file. For this, you can concatenate the consensus or CDS files; it's up to you. For the consensus, you will use the script [<b>concat_cons.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cons.sh), and for the CDS you will use the script [<b>concat_cds.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cds.sh). For both scripts, you need to set up the outgroups and the list of samples/species filtered from step 7.3. The concatenated files will be saved in the <b>results</b> folder.
@@ -391,4 +393,39 @@ OUTGROUPS=(
 )
 
 ```
+```
+# Run in the terminal
+sh BASH_SCRIPTS/concat_cons.sh
 
+# or
+sh BASH_SCRIPTS/concat_cds.sh
+
+```
+
+<br>
+
+## 11. Alignment
+
+Similar to the previous step, you can align the consensus or CDS concatenated files. Here, I used MAFFT. If you want to use a different method, you will need to create your own script. For the consensus file, you will use the script [<b>mafft_cons.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mafft_cons.slurm), and for the CDS file, you will use the script [<b>mafft_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mafft_cds.slurm). For these scripts, make sure that you have the proper concatenated fasta file. The alignments will be saved in the <b>results/alignments</b> folder.
+
+```
+# Make sure you have the proper input file
+INPUT="results/combined_masked_consensus_intersection.fasta"
+```
+
+<br>
+
+## 12. IQTree
+
+Finally, once you have your alignment, you can build a phylogeny. Here, I used IQTree, so if you want to use a different algorithm, you'll need to create your own script. Here, you will have the same two options: one for the consensus alignment using the script [<b>iqtree_cons.slurm/b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cons.slurm), and one for the CDS alignment using the script [<b>iqtree_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cds.slurm). For both scripts, you make sure that you have the proper alignment file. The results will be saved in the folder <b>results/iqtree_consensus</b> or <b>results/iqtree_cds</b>.
+
+```
+# Input for consensus
+ALIGN="results/alignments/combined_masked_consensus_intersection.mafft.fasta"
+
+# Input for CDS
+ALIGN="results/alignments/combined_masked_cds_intersection.mafft.fasta"
+
+```
+
+<br>
