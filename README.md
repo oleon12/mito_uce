@@ -202,10 +202,11 @@ S_bogotensis_AMNH_207853	results/S_bogotensis_AMNH_207853/consensus/S_bogotensis
 S_bogotensis_AMNH_207854	results/S_bogotensis_AMNH_207854/consensus/S_bogotensis_AMNH_207854_mt.fasta	16640	  0	  0.0000
 
 ```
+<br>
 
 ## 5. Masked consensus
 
-Now, you can create an advanced consensus using the script [<b>make_masked_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_masked_consensus.slurm). This is an advanced consensus generation step that masks low‑coverage regions (converts them to Ns) and validates output length. Similar to the previous one, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. The script automatically handles the <b>VCF</b> and <b>BAM</b> files, and all results will be saved in the <b>results</b> folder. The parameter <b>MIN_DEPTH=3</b> is very important in this step; this is the minimum coverage required to keep a base; below that mask as N. I used 3, but you can change it. Likewise, the script masked low coverage with <b>N</b>, but you can use another letter like <b>X</b>; you can change it by adding the parameter <i>-mc X</i> as below.
+Now, you can create an advanced consensus using the script [<b>make_masked_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_masked_consensus.slurm). This is an advanced consensus generation step that masks low‑coverage regions (converts them to Ns) and validates output length. Similar to the previous one, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. The script automatically handles the <b>VCF</b> and <b>BAM</b> files, and all results will be saved in the <b>results</b> folder. The parameter <b>MIN_DEPTH=3</b> is very important in this step; this is the minimum coverage required to keep a base; below that mask as N. I used 3, but you can change it if you like. Likewise, the script masked low coverage with <b>N</b>, but you can use another letter, such as <b>X</b>; you can change it by adding the parameter <i>-mc X</i> as shown below.
 
 ```
 # Set the environment, sample list, and fasta files
@@ -232,3 +233,17 @@ bedtools maskfasta \
 ```
 
 ### 5.1. Test masked consensus
+
+Now you can check the results of the masked consensus using the script [<b>test_masked_consensus.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_masked_consensus.sh). This script will calculate the length of the sequences, count the number of N's, and the percentage of them. The information will be saved in a <b>TSV</b> file in the <b>results</b> folder.
+
+```
+# Run in the terminal
+sh BASH_SCRIPTS/test_masked_consensus.sh
+
+cat results/masked_consensus_stats.tsv
+
+Sample	              FASTA	                                                                              Length	Ns	    Percent_N
+S_angeli_AMNH_213959	results/S_angeli_AMNH_213959/consensus_masked/S_angeli_AMNH_213959_mt_masked.fasta	16641	  9481	  56.9737
+S_angeli_AMNH_214197	results/S_angeli_AMNH_214197/consensus_masked/S_angeli_AMNH_214197_mt_masked.fasta	16642	  14227	  85.4885
+
+```
