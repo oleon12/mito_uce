@@ -11,7 +11,7 @@
 #SBATCH --mail-user=odl7@scarletmail.rutgers.edu
 #SBATCH --mail-type=END,FAIL
 
-set -uo pipefail
+set -euo pipefail
 
 cd /scratch/odl7/sturnira_mito
 
