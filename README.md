@@ -247,3 +247,18 @@ S_angeli_AMNH_213959	results/S_angeli_AMNH_213959/consensus_masked/S_angeli_AMNH
 S_angeli_AMNH_214197	results/S_angeli_AMNH_214197/consensus_masked/S_angeli_AMNH_214197_mt_masked.fasta	16642	  14227	  85.4885
 
 ```
+
+<br>
+
+## 6. Extract CDS
+
+Now, using the script [<b>extract_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/extract_cds.slurm), you will extract the CDS fasta format using the BED coordinates previously obtained from step 1.2. For this script, just make sure that you set the <b>sample_list.txt</b> file and <b>BED coordinates</b>. All results will be saved in the <b>results</b> folder.
+
+```
+# Set environment, sample list, and bed files
+
+CONDA_ENV="mt_pipeline"
+SAMPLE_LIST="CONFS/sample_list.txt"
+BED="results/cds_coords.bed"
+OUTDIR="results"
+```
