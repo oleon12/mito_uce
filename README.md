@@ -288,3 +288,57 @@ Now, after this step, you have almost everything you need from the mapping proce
       └── genes_masked/                     
           └── S_bogotensis_AMNH_207854_cds_masked.fasta 
 ```
+<br>
+
+## 7. Filtering
+
+Now, you need to filter the best-mapped sequences. In this case, I applied two filters: the first using the CDS and the second using the full consensus.
+
+### 7.1. Filtering from CDS
+
+Here, you will filter your data using the CDS summary table obtained in step 6.1. Here, you will use the script [<b>filter_from_cds.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_from_cds.sh) which reads a summary TSV file (CDS completeness statistics) and splits samples into "keep" and "drop" lists based on a threshold on the 6th column (percentage of N's or missing data). The parameter <b>CUTOFF</b> is the threshold, and in my case, a keep all sequences with an N's percentage above 40%. You can change this value if you like. The results are two text files saved in the <b>results</b> folder.
+
+```
+# Set input and output (do not change the output names)
+INPUT="results/masked_cds_summary.tsv"
+OUT_KEEP="results/keep_samples_cds_le40.txt"
+OUT_DROP="results/drop_samples_cds_gt40.txt"
+
+# Threshold value, you can change it if you want.
+CUTOFF=40
+```
+```
+# Run in the terminal
+sh BASH_SCRIPTS/filter_from_cds.sh
+```
+
+
+## 7.2. Filtering from Consensus
+
+
+Here, you will filter your data using the masked consensus summary table obtained in step 5.1. Here, you will use the script [<b>filter_from_con.sh</b>](01https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_from_con.sh) which reads a summary TSV file (consensus completeness statistics) and splits samples into "keep" and "drop" lists based on a threshold on the 6th column (percentage of N's or missing data). The parameter <b>CUTOFF</b> is the threshold, and in my case, a keep all sequences with an N's percentage above 40%. You can change this value if you like. The results are two text files saved in the <b>results</b> folder.
+
+```
+# Set input and output (do not change the output names)
+INPUT="results/masked_consensus_stats.tsv"
+OUT_KEEP="results/keep_samples_masked_consensus_le40.txt"
+OUT_DROP="results/drop_samples_masked_consensus_gt40.txt"
+
+# Threshold value, you can change it if you want.
+CUTOFF=40
+```
+
+```
+# Run in the terminal
+sh BASH_SCRIPTS/filter_from_con.sh
+```
+
+## 7.3. Intersection
+
+This is the final step. The script [<b>filter_intersection.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_intersection.sh) will take the keep text files from the two previous filters and make a final list with the samples/species shared between both filtering processes. The final list will be saved in the <b>results</b> folder.
+
+
+```
+# Run in the terminal
+sh BASH_SCRIPTS/filter_intersection.sh
+```
