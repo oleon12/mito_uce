@@ -417,7 +417,7 @@ INPUT="results/combined_masked_consensus_intersection.fasta"
 
 ## 12. IQTree
 
-Finally, once you have your alignment, you can build a phylogeny. Here, I used IQTree, so if you want to use a different algorithm, you'll need to create your own script. Here, you will have the same two options: one for the consensus alignment using the script [<b>iqtree_cons.slurm/b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cons.slurm), and one for the CDS alignment using the script [<b>iqtree_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cds.slurm). For both scripts, you make sure that you have the proper alignment file. The results will be saved in the folder <b>results/iqtree_consensus</b> or <b>results/iqtree_cds</b>.
+Finally, once you have your alignment, you can build a phylogeny. Here, I used IQTree, so if you want to use a different algorithm, you'll need to create your own script. Here, you will have the same two options: one for the consensus alignment using the script [<b>iqtree_cons.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cons.slurm), and one for the CDS alignment using the script [<b>iqtree_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cds.slurm). For both scripts, you make sure that you have the proper alignment file. The results will be saved in the folder <b>results/iqtree_consensus</b> or <b>results/iqtree_cds</b>.
 
 ```
 # Input for consensus
