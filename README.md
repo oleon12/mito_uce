@@ -149,18 +149,18 @@ Once you have completed these steps, you will find in the <b>results</b> folder 
 
 ```
 results/
-├── S_bogotensis_AMNH_207854/
-│   ├── bam/
-│   │   ├── S_bogotensis_AMNH_207854.sorted.bam
-│   │   ├── S_bogotensis_AMNH_207854.sorted.bam.bai
-│   │   ├── S_bogotensis_AMNH_207854.mapped.bam
-│   │   └── S_bogotensis_AMNH_207854.mapped.bam.bai
-│   └── vcf/
-│       ├── S_bogotensis_AMNH_207854.vcf.gz
-│       └── S_bogotensis_AMNH_207854.vcf.gz.csi
-├── S_ludovici_QCAZ_18312/
-│   └── ...
-└── ...
+  ├── S_bogotensis_AMNH_207854/
+  │   ├── bam/
+  │   │   ├── S_bogotensis_AMNH_207854.sorted.bam
+  │   │   ├── S_bogotensis_AMNH_207854.sorted.bam.bai
+  │   │   ├── S_bogotensis_AMNH_207854.mapped.bam
+  │   │   └── S_bogotensis_AMNH_207854.mapped.bam.bai
+  │   └── vcf/
+  │       ├── S_bogotensis_AMNH_207854.vcf.gz
+  │       └── S_bogotensis_AMNH_207854.vcf.gz.csi
+  ├── S_ludovici_QCAZ_18312/
+  │   └── ...
+  └── ...
 
 ```
 
