@@ -117,3 +117,31 @@ S_bogotensis_AMNH_207853      3900              16286            15.6029
 S_bogotensis_AMNH_207854      2975              15947            10.0561
 S_bogotensis_AMNH_207855      3901              15499            11.4085
 ```
+<br>
+
+## 3. Make VCF
+
+Now, you run the script [<b>vcf_file.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/vcf_file.slurm) which processes all mapped samples to produce VCF files. A VCF file (Variant Call Format) is a standard text format used in bioinformatics to store genetic variants (differences) between a sample's genome and a reference genome. Similar to the previous script, you will need the <b>sample_list.txt</b> file and the <b> reference genome</b>.
+
+```
+# Set up the working directory
+cd /scratch/odl7/sturnira_mito
+
+# Set up the sample list file and the reference fasta
+
+SAMPLE_LIST="CONFS/sample_list.txt"
+REF="references/S_ludovici_QCAZ_18312.fasta"
+
+```
+### 3.1. Test VCF
+
+Once you generate all VCF files, you can get the number of variants per sample using the script [<b>test_vcf.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_vcf.sh).
+
+```
+# Run in the terminal
+
+sh BASH_SCRIPTS/test_vcf.sh
+```
+
+---
+
