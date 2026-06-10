@@ -1,6 +1,6 @@
 # Mito - UCE
 
-This is a brief guide or tutorial on obtaining mitochondrial DNA, whether in the form of complete genomes or UCE genes. For this guide to work, your UCE data must be enriched during sequencing. This guide is a modification of the original [pipeline](https://github.com/Agustol/mtDNA-mitofinder-pipeline), so all credits go to [Agusto Luzuriaga-Neira](https://github.com/Agustol)
+This is a brief guide or tutorial on obtaining mitochondrial DNA, whether in the form of complete genomes or genes. For this guide to work, your UCE data must be enriched during sequencing. This guide is a modification of the original [pipeline](https://github.com/Agustol/mtDNA-mitofinder-pipeline), so all credits go to [Agusto Luzuriaga-Neira](https://github.com/Agustol)
 
 Also, to reduce mistakes, I strongly suggest organizing your data in the following structure so you do not need to change many of the scripts.
 
