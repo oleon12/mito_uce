@@ -262,3 +262,29 @@ SAMPLE_LIST="CONFS/sample_list.txt"
 BED="results/cds_coords.bed"
 OUTDIR="results"
 ```
+
+### 6.1. Test extracted CDS
+
+Now, using the script [<b>test_extract_cds.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_extract_cds.sh), you can see the number of CDS extracted, their length, the count of Ns, and their percentage. The information will be saved in a <b>TSV</b> file in the <b>results</b> folder.
+
+```
+# Run in the terminal
+sh BASH_SCRIPTS/test_extract_cds.sh
+
+cat results/masked_cds_summary.tsv
+
+Sample	FASTA	N_CDS	Total_Length	Ns	Percent_N
+S_angeli_AMNH_213959	results/S_angeli_AMNH_213959/genes_masked/S_angeli_AMNH_213959_cds_masked.fasta	13	11409	6602	57.8666
+S_angeli_AMNH_214197	results/S_angeli_AMNH_214197/genes_masked/S_angeli_AMNH_214197_cds_masked.fasta	13	11409	10748	94.2063
+
+```
+Now, after this step, you have almost everything you need from the mapping process, and your <b>results</b> folder should look something like this:
+
+```
+  results/
+  └── S_bogotensis_AMNH_207854/
+      ├── consensus_masked/
+      │   └── S_bogotensis_AMNH_207854_mt_masked.fasta
+      └── genes_masked/                     
+          └── S_bogotensis_AMNH_207854_cds_masked.fasta 
+```
