@@ -145,3 +145,25 @@ sh BASH_SCRIPTS/test_vcf.sh
 
 ---
 
+Once you have completed these steps, you will find in the <b>results</b> folder a specific folder for each sample/species, containing the associated <b>BAM</b> and <b>VCF</b>. Now, you can proceed with the next steps. 
+
+```
+results/
+├── S_bogotensis_AMNH_207854/
+│   ├── bam/
+│   │   ├── S_bogotensis_AMNH_207854.sorted.bam
+│   │   ├── S_bogotensis_AMNH_207854.sorted.bam.bai
+│   │   ├── S_bogotensis_AMNH_207854.mapped.bam
+│   │   └── S_bogotensis_AMNH_207854.mapped.bam.bai
+│   └── vcf/
+│       ├── S_bogotensis_AMNH_207854.vcf.gz
+│       └── S_bogotensis_AMNH_207854.vcf.gz.csi
+├── S_ludovici_QCAZ_18312/
+│   └── ...
+└── ...
+
+```
+
+---
+
+## 4. Make Consensus
