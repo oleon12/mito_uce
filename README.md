@@ -29,7 +29,8 @@ conda env create -f CONFS/environment.yml
 conda env create -f CONFS/mitofinder_env.yml --solver=classic
 
 ```
-</br>
+<br>
+
 ## 1. Reference genome
 
 To extract the genome or genes from your data, you need a reference genome. In this case, I was working with species of the genus Sturnira, so I went to GenBank and downloaded the .fasta and .gb files for a complete genome of <b><i>Sturnira ludovici</i></b>. Thus, you will need to find a reference genome and save it into the <b>references</b> folder.
