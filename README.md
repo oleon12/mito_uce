@@ -16,7 +16,8 @@ main/
   ├── references/
   └── results/
 ```
-</br>
+<br>
+
 ## 0. Environments
 
 Before you start the guide, you must build specific environments. In fact, you must create two different environments, [one](https://github.com/oleon12/mito_uce/blob/main/CONFS/environment.yml) for samtools, bwa, beftools, bedtools, and [another](https://github.com/oleon12/mito_uce/blob/main/CONFS/mitofinder_env.yml) for Python 2.7, blast, spades, and mitofinder-compatible packages. You need to use conda to build the two environment (.yml) files in the <b>CONFS</b> folder.
@@ -68,7 +69,8 @@ OUTDIR="results"
 OUTBED="$OUTDIR/cds_coords.bed"
 
 ```
-</br>
+<br>
+
 ## 2. Mapping reference
 
 Now you will run the script [<b>map_all_ref.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/map_all_ref.slurm). This script maps paired-end reads (FASTQ) to a reference genome using BWA‑MEM, sorts the resulting BAM file, and filters to keep only mapped reads. This script uses the <b>fastq.gz</b> files and also a text file named [<b>sample_list.txt</b>](https://github.com/oleon12/mito_uce/blob/main/CONFS/sample_list.txt). This text file, in the <b>CONFS</b> folder, contains the match fastq.gz file for each species. You need to create it and save it in the specific folder.
