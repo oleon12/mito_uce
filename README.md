@@ -205,6 +205,30 @@ S_bogotensis_AMNH_207854	results/S_bogotensis_AMNH_207854/consensus/S_bogotensis
 
 ## 5. Masked consensus
 
-Now, you can create an advanced consensus using the script [<b>make_masked_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_masked_consensus.slurm). This is an advanced consensus generation step that masks low‑coverage regions (converts them to Ns) and validates output length. Similar to the previous one, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. The script automatically handles the <b>VCF</b> and <b>BAM</b> files, and all results will be saved in the <b>results</b> folder. The parameter <b>MIN_DEPTH=3</b>
+Now, you can create an advanced consensus using the script [<b>make_masked_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_masked_consensus.slurm). This is an advanced consensus generation step that masks low‑coverage regions (converts them to Ns) and validates output length. Similar to the previous one, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. The script automatically handles the <b>VCF</b> and <b>BAM</b> files, and all results will be saved in the <b>results</b> folder. The parameter <b>MIN_DEPTH=3</b> is very important in this step; this is the minimum coverage required to keep a base; below that mask as N. I used 3, but you can change it. Likewise, the script masked low coverage with <b>N</b>, but you can use another letter like <b>X</b>; you can change it by adding the parameter <i>-mc X</i> as below.
+
+```
+# Set the environment, sample list, and fasta files
+CONDA_ENV="mt_pipeline"
+SAMPLE_LIST="CONFS/sample_list.txt"
+REF="references/S_ludovici_QCAZ_18312.fasta"
+OUTDIR="results"
+
+# Set minimum coverage
+MIN_DEPTH=3
+
+# If you want an X instead of N
+# add -mc X in this function
+
+bedtools maskfasta \
+        -fi "$RAWCONS" \
+        -bed "$CLIPPEDBED" \
+        -fo "$TMPCONS" || {
+        echo "maskfasta failed: $SAMPLE" | tee -a "$FAILED_LIST"
+        rm -f "$TMPCONS"
+        continue
+    }
+
+```
 
 ### 5.1. Test masked consensus
