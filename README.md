@@ -376,3 +376,19 @@ results/
     └── genes_selected/
 
 ```
+## 10. Concatenation
+
+Now you will concatenate all sequences into a single <b>FASTA</b> file. For this, you can concatenate the consensus or CDS files; it's up to you. For the consensus, you will use the script [<b>concat_cons.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cons.sh), and for the CDS you will use the script [<b>concat_cds.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cds.sh). For both scripts, you need to set up the outgroups and the list of samples/species filtered from step 7.3. The concatenated files will be saved in the <b>results</b> folder.
+
+```
+# Set up filtered list
+KEEP_LIST="results/keep_samples_intersection_le40.txt"
+
+# Add outgroups here, space-separated
+OUTGROUPS=(
+  "Artibeus_PP853570.1"
+  "Glossophaga_NC_065682.1"
+)
+
+```
+
