@@ -109,7 +109,7 @@ Like the previous one, the script [<b>mapping_summary.slurm</b>](https://github.
 Sample	                  Mapped_Reads	  Covered_Positions	  Average_Depth
 S_angeli_AMNH_213959	        420	              12318	            3.6620
 S_angeli_AMNH_214197	        293	              4873	            4.3567
-S_bogotensis_AMNH_207853	    3900	            16286	            15.6029
-S_bogotensis_AMNH_207854	    2975	            15947	            10.0561
-S_bogotensis_AMNH_207855	    3901	            15499	            11.4085
+S_bogotensis_AMNH_207853	    3900	           16286	           15.6029
+S_bogotensis_AMNH_207854	    2975	           15947	           10.0561
+S_bogotensis_AMNH_207855	    3901	           15499	           11.4085
 ```
