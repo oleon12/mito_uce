@@ -1,432 +1,925 @@
-# Mito - UCE
+# Mito-UCE
 
-This is a brief guide or tutorial on obtaining mitochondrial DNA, whether in the form of complete genomes or genes. For this guide to work, your UCE data must be enriched during sequencing. This guide is a modification of the original [pipeline](https://github.com/Agustol/mtDNA-mitofinder-pipeline), so all credits go to [Agusto Luzuriaga-Neira](https://github.com/Agustol)
+Mito-UCE is a reproducible workflow for recovering mitochondrial sequence data from paired-end UCE reads by mapping reads to a complete mitochondrial reference. The workflow produces two complementary datasets:
 
-Also, to reduce mistakes, I strongly suggest organizing your data in the following structure so you do not need to change many of the scripts.
+1. A **primary 13-protein-coding-gene (13-PCG) dataset**, aligned gene by gene through amino-acid translation and codon-aware back-translation.
+2. An **optional complete-mitogenome dataset**, retained as a complementary sensitivity analysis after alignment and manual quality review.
 
-```
+This guide is based on and expands the original [mtDNA-MitoFinder pipeline](https://github.com/Agustol/mtDNA-mitofinder-pipeline). Credit for the original workflow goes to [Agusto Luzuriaga-Neira](https://github.com/Agustol).
+
+> [!IMPORTANT]
+> The current repository prepares, validates, filters, concatenates, and aligns mitochondrial sequences. It does **not** prescribe or include a final IQ-TREE analysis. Use the resulting alignments and partition files with the phylogenetic software and inference strategy appropriate for your study.
+
+---
+
+## Recommended directory structure
+
+Organizing the project as shown below allows the scripts to run with minimal path changes.
+
+```text
 main/
-  ├── BASH_SCRIPTS
-  ├── CONFS
-  ├── ERR_OUT
-  ├── LOG
-  ├── raw_data/
-  │   ├── outgroups/
-  │   └── UCE/
-  ├── references/
-  └── results/
+├── BASH_SCRIPTS/
+├── CONFS/
+│   ├── environment.yml
+│   ├── mitofinder_env.yml
+│   ├── sample_list.txt
+│   ├── out_group_template.txt
+│   └── outgroup_list.txt          # created from the template
+├── ERR_OUT/
+├── LOG/
+├── raw_data/
+│   ├── outgroups/
+│   └── UCE/
+├── references/
+└── results/
 ```
-<br>
 
-## 0. Environments
+Most scripts currently use:
 
-Before you start the guide, you must build specific environments. In fact, you must create two different environments, [one](https://github.com/oleon12/mito_uce/blob/main/CONFS/environment.yml) for samtools, bwa, beftools, bedtools, and [another](https://github.com/oleon12/mito_uce/blob/main/CONFS/mitofinder_env.yml) for Python 2.7, blast, spades, and mitofinder-compatible packages. You need to use conda to build the two environment (.yml) files in the <b>CONFS</b> folder.
-
+```bash
+cd /scratch/odl7/sturnira_mito
 ```
-# Make sure that you are in the main before running these lines.
-# Run in terminal
 
+Change `WORKDIR` or the initial `cd` command in every script when adapting the workflow to another project.
+
+---
+
+## Workflow overview
+
+```text
+Reference FASTA + GenBank
+        │
+        ├── prep_ref.slurm
+        └── cds_bed.slurm
+                 │
+Paired UCE FASTQs
+        │
+        └── map_all_ref.slurm
+                 │
+        duplicate-marked mapped BAMs
+                 │
+        └── vcf_file.slurm
+                 │
+        normalized haploid audit VCFs
+                 │
+        ├── make_consensus.slurm            optional diagnostic output
+        └── make_masked_consensus.slurm     required publication output
+                 │
+        ├── complete masked mitogenomes
+        └── extract_cds.slurm
+                 │
+        13 named PCGs per specimen
+                 │
+Public outgroup FASTA + GenBank
+        │
+        └── outgroup_from_gb.sh
+                 │
+Independent M40 / M30 / M20 filtering
+        │
+        ├── concat_cds.sh
+        └── concat_cons.sh
+                 │
+        ├── mafft_cds.slurm
+        └── mafft_cons.slurm
+                 │
+Validated alignments for downstream phylogenetic analysis
+```
+
+---
+
+# 0. Software environments
+
+The main mapping and consensus workflow uses the Conda environment defined in [`CONFS/environment.yml`](https://github.com/oleon12/mito_uce/blob/main/CONFS/environment.yml).
+
+```bash
 conda env create -f CONFS/environment.yml
+```
+
+The scripts expect this environment to be named:
+
+```bash
+mt_pipeline
+```
+
+The repository also retains [`CONFS/mitofinder_env.yml`](https://github.com/oleon12/mito_uce/blob/main/CONFS/mitofinder_env.yml) for MITOFinder-compatible or legacy analyses:
+
+```bash
 conda env create -f CONFS/mitofinder_env.yml --solver=classic
-
-```
-<br>
-
-## 1. Reference genome
-
-To extract the genome or genes from your data, you need a reference mitochondrial genome (hereafter, the reference genome). In this case, I was working with species of the genus Sturnira, so I went to GenBank and downloaded the .fasta and .gb files for a complete reference genome of <b><i>Sturnira ludovici</i></b>. Thus, you will need to find a reference genome and save it into the <b>references</b> folder.
-
-### 1.1. Prepare reference 
-
-The first step is to prepare the reference files from the reference genome. For this step, you will run the script [<b>prep_ref.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/prep_ref.slurm). This script first builds the BWA index, which creates several files: .bwt, .sa, .amb, .ann, and .pac. Then it will create a FASTA index with samtools, producing a .fai file (tab-separated: chromosome name, length, offset, etc.). For this script, you must make sure that you call the proper environment with conda, set the path to the reference fasta file, and set the proper working directory (main).
-
-All files will be saved in the <b>references</b> folder.
-
-```
-# Set working directory
-cd /scratch/odl7/sturnira_mito
-
-# Call environment
-CONDA_ENV="mt_pipeline"
-
-# Set references path
-REF="references/S_ludovici_QCAZ_18312.fasta"
-
 ```
 
-### 1.2. Build CDS beds
+The current reference-mapping workflow documented below uses `mt_pipeline`.
 
-Now, you must run the script [<b>cds_bed.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/cds_bed.slurm). This script takes a GenBank (.gb) file and a matching FASTA file, extracts all CDS (coding sequence) coordinates, and converts them into BED format (0‑based, half‑open) for downstream analyses. For this script, you make sure to set the working directory, the fasta file, and the gb file of the reference genome. The output files will be saved in the <b>results</b> folder. <i>You can change the output file name if you want, but you will need to update it in subsequent steps.</i>
+Core software includes:
 
+- BWA
+- SAMtools
+- BCFtools
+- MAFFT
+- Biopython
+- standard Unix tools
+
+---
+
+# 1. Input configuration
+
+## 1.1. Ingroup sample list
+
+Create [`CONFS/sample_list.txt`](https://github.com/oleon12/mito_uce/blob/main/CONFS/sample_list.txt) with exactly three whitespace-separated fields per non-comment line:
+
+```text
+SAMPLE_ID R1_FASTQ R2_FASTQ
 ```
-# Set working directory
-cd /scratch/odl7/sturnira_mito
 
-# Set reference paths
-REF="references/S_ludovici_QCAZ_18312.fasta"
-REFGB="references/S_ludovici_QCAZ_18312.gb"
+Example:
 
-# Output path
-OUTDIR="results"
-OUTBED="$OUTDIR/cds_coords.bed"
-
-```
-<br>
-
-## 2. Mapping reference
-
-Now you will run the script [<b>map_all_ref.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/map_all_ref.slurm). This script maps paired-end reads (FASTQ) to a reference genome using BWA‑MEM, sorts the resulting BAM file, and filters to keep only mapped reads. This script uses the <b>fastq.gz</b> files and also a text file named [<b>sample_list.txt</b>](https://github.com/oleon12/mito_uce/blob/main/CONFS/sample_list.txt). This text file, in the <b>CONFS</b> folder, contains the match fastq.gz file for each species. You need to create it and save it in the specific folder.
-
-Example of <b>sample_list.txt</b> (be aware that the path to the fastq.gz file must be included):
-
-```
+```text
 S_angeli_AMNH_214197 raw_data/UCE/CBT03_L0074_R1.fastq.gz raw_data/UCE/CBT03_L0074_R2.fastq.gz
 S_bogotensis_AMNH_246573 raw_data/UCE/CBT03_L0096_R1.fastq.gz raw_data/UCE/CBT03_L0096_R2.fastq.gz
 ```
 
-Once you have finished the text file, you go to the <b>map_all_ref.slurm</b> set up the working directory and the required files and paths. All of the results will be saved in the <b>results</b> folder.
+Sample identifiers should contain only letters, numbers, periods, underscores, and hyphens. Each identifier must be unique because it becomes the BAM read-group sample name, VCF sample name, FASTA identifier, and downstream taxon name.
 
-```
-# Set up the working directory
-cd /scratch/odl7/sturnira_mito
+## 1.2. Outgroup manifest
 
-# Set up the sample list file and the reference fasta
-SAMPLE_LIST="CONFS/sample_list.txt"
-REF="references/S_ludovici_QCAZ_18312.fasta"
+The repository includes [`CONFS/out_group_template.txt`](https://github.com/oleon12/mito_uce/blob/main/CONFS/out_group_template.txt). Copy it to the filename expected by the outgroup-preparation script:
 
-```
-### 2.1. Test Mapping
-
-Once you have finished the mapping, you can quickly check your results by running the script [<b>test_map_ref.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_map_ref.sh). This will give you the mapped reads, covered position, and average depth.
-
-```
-# Run in the terminal
-
-sh BASH_SCRIPTS/test_map_ref.sh
-
+```bash
+cp CONFS/out_group_template.txt CONFS/outgroup_list.txt
 ```
 
-### 2.2. Mapping summary
+Then edit `CONFS/outgroup_list.txt`. Each non-comment line must contain:
 
-Like the previous one, the script [<b>mapping_summary.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mapping_summary.slurm) provides a summary of the mapping and saves everything in a TSV file in the <b>results</b> folder. This is an example of a summary table.
-
+```text
+OUTGROUP_ID FASTA_PATH GENBANK_PATH
 ```
-Sample	                  Mapped_Reads	  Covered_Positions	  Average_Depth
-S_angeli_AMNH_213959          420               12318            3.6620
-S_angeli_AMNH_214197          293               4873             4.3567
-S_bogotensis_AMNH_207853      3900              16286            15.6029
-S_bogotensis_AMNH_207854      2975              15947            10.0561
-S_bogotensis_AMNH_207855      3901              15499            11.4085
+
+Example:
+
+```text
+Artibeus_PP853570.1 raw_data/outgroups/Artibeus_PP853570.1.fasta raw_data/outgroups/Artibeus_PP853570.1.gb
+Glossophaga_NC_065682.1 raw_data/outgroups/Glossophaga_NC_065682.1.fasta raw_data/outgroups/Glossophaga_NC_065682.1.gb
 ```
-<br>
 
-## 3. Make VCF
+The FASTA and GenBank files for each outgroup must represent the same complete circular mitochondrial molecule.
 
-Now, you run the script [<b>vcf_file.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/vcf_file.slurm) which processes all mapped samples to produce VCF files. A VCF file (Variant Call Format) is a standard text format used in bioinformatics to store genetic variants (differences) between a sample's genome and a reference genome. Similar to the previous script, you will need the <b>sample_list.txt</b> file and the <b> reference genome</b>.
+---
 
+# 2. Reference genome
+
+A complete mitochondrial reference is required in both FASTA and GenBank formats. Both files must contain exactly one record and must represent the same sequence.
+
+The example project uses:
+
+```text
+references/S_ludovici_QCAZ_18312.fasta
+references/S_ludovici_QCAZ_18312.gb
 ```
-# Set up the working directory
-cd /scratch/odl7/sturnira_mito
 
-# Set up the sample list file and the reference fasta
+## 2.1. Prepare and validate the reference
 
-SAMPLE_LIST="CONFS/sample_list.txt"
-REF="references/S_ludovici_QCAZ_18312.fasta"
+Run [`prep_ref.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/prep_ref.slurm).
 
+```bash
+sbatch BASH_SCRIPTS/prep_ref.slurm
 ```
-### 3.1. Test VCF
 
-Once you generate all VCF files, you can get the number of variants per sample using the script [<b>test_vcf.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_vcf.sh).
+The script:
 
+- validates exact FASTA–GenBank sequence identity;
+- requires one unambiguous circular DNA sequence;
+- validates the conventional mammalian tRNA-Phe circular origin;
+- verifies all 13 mitochondrial protein-coding genes;
+- checks `codon_start`, vertebrate mitochondrial translation table 2, annotated translations, and internal stops;
+- builds and validates all classic BWA index components;
+- creates and validates the SAMtools `.fai` index;
+- detects stale indexes through checksums;
+- performs functional BWA-MEM and `samtools faidx` smoke tests.
+
+Essential outputs include:
+
+```text
+references/S_ludovici_QCAZ_18312.fasta.amb
+references/S_ludovici_QCAZ_18312.fasta.ann
+references/S_ludovici_QCAZ_18312.fasta.bwt
+references/S_ludovici_QCAZ_18312.fasta.pac
+references/S_ludovici_QCAZ_18312.fasta.sa
+references/S_ludovici_QCAZ_18312.fasta.fai
+
+results/reference_preparation/reference_qc.tsv
+results/reference_preparation/reference_cds_qc.tsv
+results/reference_preparation/reference_index_manifest.tsv
 ```
-# Run in the terminal
 
-sh BASH_SCRIPTS/test_vcf.sh
+## 2.2. Build the reference CDS coordinates
+
+Run [`cds_bed.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/cds_bed.slurm).
+
+```bash
+sbatch BASH_SCRIPTS/cds_bed.slurm
+```
+
+The script parses the GenBank annotation structurally with Biopython. It validates and extracts the coding portions of:
+
+```text
+ND1 ND2 COX1 COX2 ATP8 ATP6 COX3 ND3 ND4L ND4 ND5 ND6 CYTB
+```
+
+It preserves strand and compound-feature information, excludes annotated terminal stop bases, validates translations, and creates a coding-only BED12 file.
+
+Essential outputs:
+
+```text
+results/cds_coords.bed
+results/cds_coords.tsv
+```
+
+Do not replace this BED12 file with a simple six-column BED. The revised extraction workflow uses its block and strand information.
+
+---
+
+# 3. Map UCE reads to the mitochondrial reference
+
+Run [`map_all_ref.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/map_all_ref.slurm).
+
+```bash
+sbatch BASH_SCRIPTS/map_all_ref.slurm
+```
+
+For every entry in `sample_list.txt`, the script:
+
+- validates paired FASTQ structure and mate names;
+- adds an `@RG` read group with `SM=SAMPLE_ID`;
+- maps with BWA-MEM;
+- retains primary, mapped, QC-passed alignments;
+- name-sorts and runs `samtools fixmate`;
+- coordinate-sorts the BAM;
+- marks, but does not delete, duplicate reads;
+- validates BAM integrity, sample identity, flags, and indexing;
+- finalizes outputs only after all checks pass.
+
+The primary BAM output is:
+
+```text
+results/SAMPLE/bam/SAMPLE.mapped.bam
+results/SAMPLE/bam/SAMPLE.mapped.bam.bai
+```
+
+The workflow no longer requires a large intermediate `SAMPLE.sorted.bam`.
+
+Additional audit files include:
+
+```text
+results/SAMPLE/bam/SAMPLE.mapping_qc.tsv
+results/SAMPLE/bam/SAMPLE.bwa_mem.log
+results/SAMPLE/bam/SAMPLE.markdup_stats.txt
+results/SAMPLE/bam/SAMPLE.mapping_commands.log
+```
+
+## 3.1. Mapping summary
+
+Run [`mapping_summary.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mapping_summary.slurm).
+
+```bash
+sbatch BASH_SCRIPTS/mapping_summary.slurm
+```
+
+The summary uses the same quality-filtered evidence later used for masking:
+
+- minimum base quality 20;
+- minimum mapping quality 20;
+- duplicate reads excluded;
+- overlapping paired-read segments counted once;
+- zero-depth positions included.
+
+Output:
+
+```text
+results/mapping_summary.tsv
+results/mapping_summary_failed_samples.txt
+```
+
+Reported metrics include mapped and duplicate counts, mean and median genome-wide depth, maximum depth, coverage at ≥1×, ≥3×, ≥5×, and ≥10×, and a heuristic warning for reduced coverage near the artificial boundary of the linearized circular genome.
+
+## 3.2. Test mapping outputs
+
+Run [`test_map_ref.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_map_ref.sh).
+
+```bash
+bash BASH_SCRIPTS/test_map_ref.sh
+```
+
+This is a read-only regression test. It validates BAM integrity, indexes, read groups, duplicate marking, alignment flags, reference identity, and agreement with `mapping_summary.tsv`.
+
+Output:
+
+```text
+results/tests/test_map_ref.tsv
 ```
 
 ---
 
-Once you have completed these steps, you will find in the <b>results</b> folder a specific folder for each sample/species, containing the associated <b>BAM</b> and <b>VCF</b>. Now, you can proceed with the next steps. 
+# 4. Call mitochondrial variants
 
+Run [`vcf_file.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/vcf_file.slurm).
+
+```bash
+sbatch BASH_SCRIPTS/vcf_file.slurm
 ```
-results/
-  ├── S_bogotensis_AMNH_207854/
-  │   ├── bam/
-  │   │   ├── S_bogotensis_AMNH_207854.sorted.bam
-  │   │   ├── S_bogotensis_AMNH_207854.sorted.bam.bai
-  │   │   ├── S_bogotensis_AMNH_207854.mapped.bam
-  │   │   └── S_bogotensis_AMNH_207854.mapped.bam.bai
-  │   └── vcf/
-  │       ├── S_bogotensis_AMNH_207854.vcf.gz
-  │       └── S_bogotensis_AMNH_207854.vcf.gz.csi
-  ├── S_ludovici_QCAZ_18312/
-  │   └── ...
-  └── ...
 
+The script creates one normalized, haploid, soft-filtered audit VCF per sample. It:
+
+- requires the revised duplicate-marked BAM and matching read-group sample name;
+- uses explicit mapping-quality and base-quality thresholds;
+- chooses a sample-specific mpileup depth cap above the observed maximum depth;
+- applies full BAQ;
+- calls haploid genotypes;
+- normalizes records against the reference;
+- splits multiallelic records;
+- retains SNPs, indels, complex calls, and low-confidence calls with informative FILTER labels.
+
+The final VCF is:
+
+```text
+results/SAMPLE/vcf/SAMPLE.vcf.gz
+results/SAMPLE/vcf/SAMPLE.vcf.gz.csi
+```
+
+A record is eligible for later consensus application only when it is a high-confidence haploid ALT SNP that passes the configured QUAL, depth, alternate-depth, alternate-fraction, and proximity-to-indel rules.
+
+Other records remain in the VCF so that the masked-consensus step can treat their reference spans as uncertain rather than silently retaining the reference allele.
+
+Additional outputs:
+
+```text
+results/SAMPLE/vcf/SAMPLE.raw.normalized.vcf.gz
+results/SAMPLE/vcf/SAMPLE.variant_qc.tsv
+results/SAMPLE/vcf/SAMPLE.bcftools_stats.txt
+results/SAMPLE/vcf/SAMPLE.vcf_commands.log
+results/vcf_summary.tsv
+results/vcf_failed_samples.txt
+```
+
+> [!NOTE]
+> This workflow builds a conservative homoplasmic consensus. It is not a dedicated heteroplasmy analysis.
+
+## 4.1. Test VCF outputs
+
+Run [`test_vcf.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_vcf.sh).
+
+```bash
+bash BASH_SCRIPTS/test_vcf.sh
+```
+
+The test validates:
+
+- VCF and CSI integrity;
+- sample identity;
+- haploid genotypes;
+- reference coordinates;
+- FILTER definitions;
+- PASS SNP criteria;
+- agreement with `vcf_summary.tsv`.
+
+Output:
+
+```text
+results/tests/test_vcf.tsv
 ```
 
 ---
 
-<br>
+# 5. Build mitochondrial consensuses
 
-## 4. Make Consensus
+## 5.1. Optional unmasked diagnostic consensus
 
-Now with the <b>VCF</b> and <b>BAM</b> files, you can create a consensus fasta file using the script [<b>make_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_consensus.slurm). For this script, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. All results will be saved in the <b>results</b> folder. The script automatically handles the <b>VCF</b> files for every sample/species. If you change any name from previous scripts, you will need to modify the script; if not, you are ready to go.
+[`make_consensus.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_consensus.slurm) produces an unmasked, SNP-only diagnostic reconstruction.
 
-```
-# Set the environment, sample list, and fasta files
-CONDA_ENV="mt_pipeline"
-SAMPLE_LIST="CONFS/sample_list.txt"
-REF="references/S_ludovici_QCAZ_18312.fasta"
-OUTDIR="results"
-
-# In this part, the script finds the VCF files using the sample list
-# and save every consensus in individual folders
-VCF="$OUTDIR/$SAMPLE/vcf/$SAMPLE.vcf.gz"
-CONSDIR="$OUTDIR/$SAMPLE/consensus"
-CONS="$CONSDIR/${SAMPLE}_mt.fasta"
-
+```bash
+sbatch BASH_SCRIPTS/make_consensus.slurm
 ```
 
-### 4.1. Test consensus
+Output:
 
-Once you have finished the consensus, you can check your results using the script [<b>test_consensus.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_consensus.sh). This script will calculate the length of the sequences, count the number of N's, and the percentage of them. The information will be saved in a <b>TSV</b> file in the <b>results</b> folder.
-
+```text
+results/SAMPLE/consensus_diagnostic/SAMPLE_mt_unmasked_snp_only.fasta
+results/unmasked_consensus_summary.tsv
 ```
-# Run in the terminal
-sh BASH_SCRIPTS/test_consensus.sh
 
-cat results/consensus_stats.tsv
+> [!WARNING]
+> These sequences retain reference bases at positions with insufficient or absent evidence. They are for diagnostics only and must not be used as phylogenetic input.
 
-Sample	                  FASTA	                                                                        Length	Ns	Percent_N
-S_bogotensis_AMNH_207853	results/S_bogotensis_AMNH_207853/consensus/S_bogotensis_AMNH_207853_mt.fasta	16634	  0	  0.0000
-S_bogotensis_AMNH_207854	results/S_bogotensis_AMNH_207854/consensus/S_bogotensis_AMNH_207854_mt.fasta	16640	  0	  0.0000
+The optional diagnostic regression test is:
 
+```bash
+bash BASH_SCRIPTS/test_consensus.sh
 ```
-<br>
 
-## 5. Masked consensus
+Output:
 
-Now, you can create an advanced consensus using the script [<b>make_masked_consensus.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_masked_consensus.slurm). This is an advanced consensus generation step that masks low‑coverage regions (converts them to Ns) and validates output length. Similar to the previous one, you will need the <b>sample_list.txt</b> and <b>reference genome</b> files. The script automatically handles the <b>VCF</b> and <b>BAM</b> files, and all results will be saved in the <b>results</b> folder. The parameter <b>MIN_DEPTH=3</b> is very important in this step; this is the minimum coverage required to keep a base; below that mask as N. I used 3, but you can change it if you like. Likewise, the script masked low coverage with <b>N</b>, but you can use another letter, such as <b>X</b>; you can change it by adding the parameter <i>-mc X</i> as shown below.
-
+```text
+results/tests/test_consensus.tsv
 ```
-# Set the environment, sample list, and fasta files
-CONDA_ENV="mt_pipeline"
-SAMPLE_LIST="CONFS/sample_list.txt"
-REF="references/S_ludovici_QCAZ_18312.fasta"
-OUTDIR="results"
 
-# Set minimum coverage
+## 5.2. Required coordinate-preserving masked consensus
+
+Run [`make_masked_consensus.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/make_masked_consensus.slurm).
+
+```bash
+sbatch BASH_SCRIPTS/make_masked_consensus.slurm
+```
+
+This is the required consensus step for all downstream analyses.
+
+The script:
+
+- applies only high-confidence PASS haploid SNPs;
+- never inserts or deletes sequence relative to the reference;
+- masks called indels, complex records, low-confidence calls, and uncertain genotypes;
+- masks positions below the configured quality-filtered depth;
+- calculates depth after base-quality and mapping-quality filtering;
+- counts overlapping paired-read segments once;
+- requires the final consensus to equal the reference length exactly;
+- writes the correct `>SAMPLE` FASTA header;
+- builds and validates the FASTA index.
+
+The default depth threshold is:
+
+```bash
 MIN_DEPTH=3
-
-# If you want an X instead of N
-# add -mc X in this function
-
-bedtools maskfasta \
-        -fi "$RAWCONS" \
-        -bed "$CLIPPEDBED" \
-        -fo "$TMPCONS" || {
-        echo "maskfasta failed: $SAMPLE" | tee -a "$FAILED_LIST"
-        rm -f "$TMPCONS"
-        continue
-    }
-
 ```
 
-### 5.1. Test masked consensus
+A separate 5× sensitivity reconstruction may be useful for especially incomplete or unstable specimens.
 
-Now you can check the results of the masked consensus using the script [<b>test_masked_consensus.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_masked_consensus.sh). This script will calculate the length of the sequences, count the number of N's, and the percentage of them. The information will be saved in a <b>TSV</b> file in the <b>results</b> folder.
+Essential outputs:
 
-```
-# Run in the terminal
-sh BASH_SCRIPTS/test_masked_consensus.sh
+```text
+results/SAMPLE/consensus_masked/SAMPLE_mt_masked.fasta
+results/SAMPLE/consensus_masked/SAMPLE_mt_masked.fasta.fai
+results/SAMPLE/consensus_masked/SAMPLE.masked_consensus_qc.tsv
 
-cat results/masked_consensus_stats.tsv
-
-Sample	              FASTA	                                                                              Length	Ns	    Percent_N
-S_angeli_AMNH_213959	results/S_angeli_AMNH_213959/consensus_masked/S_angeli_AMNH_213959_mt_masked.fasta	16641	  9481	  56.9737
-S_angeli_AMNH_214197	results/S_angeli_AMNH_214197/consensus_masked/S_angeli_AMNH_214197_mt_masked.fasta	16642	  14227	  85.4885
-
+results/masked_consensus_summary.tsv
+results/masked_consensus_failed_samples.txt
 ```
 
-<br>
+Per-sample audit outputs also preserve depth tables, mask BED files, normalized/accepted VCF subsets, and command logs.
 
-## 6. Extract CDS
+## 5.3. Test masked consensuses
 
-Now, using the script [<b>extract_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/extract_cds.slurm), you will extract the CDS fasta format using the BED coordinates previously obtained from step 1.2. For this script, just make sure that you set the <b>sample_list.txt</b> file and <b>BED coordinates</b>. All results will be saved in the <b>results</b> folder.
+Run [`test_masked_consensus.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_masked_consensus.sh).
 
-```
-# Set environment, sample list, and bed files
-
-CONDA_ENV="mt_pipeline"
-SAMPLE_LIST="CONFS/sample_list.txt"
-BED="results/cds_coords.bed"
-OUTDIR="results"
+```bash
+bash BASH_SCRIPTS/test_masked_consensus.sh
 ```
 
-### 6.1. Test extracted CDS
+The test validates sequence identifiers, symbols, exact reference length, `.fai` consistency, full-sequence retrieval, missing-data counts, and agreement with `masked_consensus_summary.tsv`.
 
-Now, using the script [<b>test_extract_cds.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_extract_cds.sh), you can see the number of CDS extracted, their length, the count of Ns, and their percentage. The information will be saved in a <b>TSV</b> file in the <b>results</b> folder.
+Output:
 
-```
-# Run in the terminal
-sh BASH_SCRIPTS/test_extract_cds.sh
-
-cat results/masked_cds_summary.tsv
-
-Sample	FASTA	N_CDS	Total_Length	Ns	Percent_N
-S_angeli_AMNH_213959	results/S_angeli_AMNH_213959/genes_masked/S_angeli_AMNH_213959_cds_masked.fasta	13	11409	6602	57.8666
-S_angeli_AMNH_214197	results/S_angeli_AMNH_214197/genes_masked/S_angeli_AMNH_214197_cds_masked.fasta	13	11409	10748	94.2063
-
-```
-Now, after this step, you have almost everything you need from the mapping process, and your <b>results</b> folder should look something like this:
-
-```
-  results/
-  └── S_bogotensis_AMNH_207854/
-      ├── consensus_masked/
-      │   └── S_bogotensis_AMNH_207854_mt_masked.fasta
-      └── genes_masked/                     
-          └── S_bogotensis_AMNH_207854_cds_masked.fasta 
-```
-<br>
-
-## 7. Filtering
-
-Now, you need to filter the best-mapped sequences. In this case, I applied two filters: the first using the CDS and the second using the full consensus.
-
-### 7.1. Filtering from CDS
-
-Here, you will filter your data using the CDS summary table obtained in step 6.1. Here, you will use the script [<b>filter_from_cds.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_from_cds.sh) which reads a summary TSV file (CDS completeness statistics) and splits samples into "keep" and "drop" lists based on a threshold on the 6th column (percentage of N's or missing data). The parameter <b>CUTOFF</b> is the threshold, and in my case, a keep all sequences with an N's percentage above 40%. You can change this value if you like. The results are two text files saved in the <b>results</b> folder.
-
-```
-# Set input and output (do not change the output names)
-INPUT="results/masked_cds_summary.tsv"
-OUT_KEEP="results/keep_samples_cds_le40.txt"
-OUT_DROP="results/drop_samples_cds_gt40.txt"
-
-# Threshold value, you can change it if you want.
-CUTOFF=40
-```
-```
-# Run in the terminal
-sh BASH_SCRIPTS/filter_from_cds.sh
+```text
+results/tests/test_masked_consensus.tsv
 ```
 
+---
 
-### 7.2. Filtering from Consensus
+# 6. Extract the 13 mitochondrial PCGs
 
+Run [`extract_cds.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/extract_cds.slurm).
 
-Here, you will filter your data using the masked consensus summary table obtained in step 5.1. Here, you will use the script [<b>filter_from_con.sh</b>](01https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_from_con.sh) which reads a summary TSV file (consensus completeness statistics) and splits samples into "keep" and "drop" lists based on a threshold on the 6th column (percentage of N's or missing data). The parameter <b>CUTOFF</b> is the threshold, and in my case, a keep all sequences with an N's percentage above 40%. You can change this value if you like. The results are two text files saved in the <b>results</b> folder.
-
-```
-# Set input and output (do not change the output names)
-INPUT="results/masked_consensus_stats.tsv"
-OUT_KEEP="results/keep_samples_masked_consensus_le40.txt"
-OUT_DROP="results/drop_samples_masked_consensus_gt40.txt"
-
-# Threshold value, you can change it if you want.
-CUTOFF=40
+```bash
+sbatch BASH_SCRIPTS/extract_cds.slurm
 ```
 
-```
-# Run in the terminal
-sh BASH_SCRIPTS/filter_from_con.sh
-```
+The script extracts the 13 coding regions from each fixed-coordinate masked consensus using `results/cds_coords.bed` and `results/cds_coords.tsv`.
 
-### 7.3. Intersection
+Each sample produces exactly 13 records in biological gene order:
 
-This is the final step. The script [<b>filter_intersection.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_intersection.sh) will take the keep text files from the two previous filters and make a final list with the samples/species shared between both filtering processes. The final list will be saved in the <b>results</b> folder.
-
-
-```
-# Run in the terminal
-sh BASH_SCRIPTS/filter_intersection.sh
-```
-<br>
-
-## 8. Rename headers
-
-Now, you will need to standardize sequence headers in the masked consensus and CDS FASTA files for all samples. This is a critical step before concatenating or aligning sequences across samples, as it ensures that headers are clean and consistent. For this, you must run two scripts, [<b>rename_fasta.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/rename_fasta.sh) and [<b>rename_fai.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/rename_fai.sh).
-
-```
-# Run in the terminal
-sh BASH_SCRIPTS/rename_fasta.sh
-
-# Run in the terminal
-sh BASH_SCRIPTS/rename_fai.sh
-
-```
-<br>
-
-## 9. Outgroups
-
-Now, you need to format the outgroups to the same format as the other sequences. For this, your outgroups will need the <b>fasta</b> and <b>GB</b> files. These files must be saved in the <b>raw_data/outgroups</b> folder. Then you run the script [<b>outgroup_from_gb.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/outgroup_from_gb.sh).
-
-```
-# Run in the terminal
-sh BASH_SCRIPTS/outgroup_from_gb.sh
-
-# Once you have finished, your outgroup folder should look like this
-
-results/
-└── Artibeus_PP853570.1/
-    ├── Artibeus_PP853570.1_cds_coords.bed
-    ├── consensus_masked/
-    ├── genes_masked/
-    └── genes_selected/
-
-```
-<br>
-
-## 10. Concatenation
-
-Now you will concatenate all sequences into a single <b>FASTA</b> file. For this, you can concatenate the consensus or CDS files; it's up to you. For the consensus, you will use the script [<b>concat_cons.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cons.sh), and for the CDS you will use the script [<b>concat_cds.sh</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cds.sh). For both scripts, you need to set up the outgroups and the list of samples/species filtered from step 7.3. The concatenated files will be saved in the <b>results</b> folder.
-
-```
-# Set up filtered list
-KEEP_LIST="results/keep_samples_intersection_le40.txt"
-
-# Add outgroups here, space-separated
-OUTGROUPS=(
-  "Artibeus_PP853570.1"
-  "Glossophaga_NC_065682.1"
-)
-
-```
-```
-# Run in the terminal
-sh BASH_SCRIPTS/concat_cons.sh
-
-# or
-sh BASH_SCRIPTS/concat_cds.sh
-
+```fasta
+>SAMPLE|ND1
+>SAMPLE|ND2
+>SAMPLE|COX1
+...
+>SAMPLE|CYTB
 ```
 
-<br>
+Output:
 
-## 11. Alignment
+```text
+results/SAMPLE/genes_masked/SAMPLE_13PCG_masked.fasta
+results/SAMPLE/genes_masked/SAMPLE_13PCG_qc.tsv
 
-Similar to the previous step, you can align the consensus or CDS concatenated files. Here, I used MAFFT. If you want to use a different method, you will need to create your own script. For the consensus file, you will use the script [<b>mafft_cons.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mafft_cons.slurm), and for the CDS file, you will use the script [<b>mafft_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mafft_cds.slurm). For these scripts, make sure that you have the proper concatenated fasta file. The alignments will be saved in the <b>results/alignments</b> folder.
-
-```
-# Make sure you have the proper input file
-INPUT="results/combined_masked_consensus_intersection.fasta"
-```
-
-<br>
-
-## 12. IQTree
-
-Finally, once you have your alignment, you can build a phylogeny. Here, I used IQTree, so if you want to use a different algorithm, you'll need to create your own script. Here, you will have the same two options: one for the consensus alignment using the script [<b>iqtree_cons.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cons.slurm), and one for the CDS alignment using the script [<b>iqtree_cds.slurm</b>](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/iqtree_cds.slurm). For both scripts, you make sure that you have the proper alignment file. The results will be saved in the folder <b>results/iqtree_consensus</b> or <b>results/iqtree_cds</b>.
-
-```
-# Input for consensus
-ALIGN="results/alignments/combined_masked_consensus_intersection.mafft.fasta"
-
-# Input for CDS
-ALIGN="results/alignments/combined_masked_cds_intersection.mafft.fasta"
-
+results/extract_masked_cds_summary.tsv
+results/extract_masked_cds_failed_samples.txt
 ```
 
-<br>
+The script validates:
+
+- the exact 13-gene set and order;
+- valid IUPAC nucleotides;
+- expected ingroup gene lengths;
+- coding frame;
+- mitochondrial translation table;
+- absence of definite internal stop codons.
+
+## 6.1. Test extracted CDS data
+
+Run [`test_extract_cds.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/test_extract_cds.sh).
+
+```bash
+bash BASH_SCRIPTS/test_extract_cds.sh
+```
+
+The test independently validates ingroup and outgroup 13-PCG FASTAs, gene names and order, frames, stop codons, coding lengths, missing-data counts, and agreement with the production summaries.
+
+Output:
+
+```text
+results/tests/test_extract_cds.tsv
+```
+
+---
+
+# 7. Prepare outgroups
+
+Place each outgroup FASTA and matching GenBank file under:
+
+```text
+raw_data/outgroups/
+```
+
+Create `CONFS/outgroup_list.txt` from [`CONFS/out_group_template.txt`](https://github.com/oleon12/mito_uce/blob/main/CONFS/out_group_template.txt), as described in Section 1.2.
+
+Then run [`outgroup_from_gb.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/outgroup_from_gb.sh).
+
+```bash
+bash BASH_SCRIPTS/outgroup_from_gb.sh
+```
+
+For every outgroup, the script:
+
+- verifies that FASTA and GenBank represent the same circular sequence;
+- validates all 13 PCG annotations and translations;
+- extracts every gene from that outgroup's own GenBank annotation;
+- writes named, frame-valid coding sequences;
+- standardizes complete-genome orientation and circular origin to the reference;
+- validates PCG order and strand pattern;
+- writes complete QC and audit reports.
+
+Outputs include:
+
+```text
+results/OUTGROUP/consensus_masked/OUTGROUP_mt_masked.fasta
+results/OUTGROUP/consensus_masked/OUTGROUP_mt_masked.fasta.fai
+
+results/OUTGROUP/genes_masked/OUTGROUP_13PCG_masked.fasta
+results/OUTGROUP/genes_masked/OUTGROUP_13PCG_qc.tsv
+
+results/OUTGROUP/outgroup_qc/OUTGROUP_circular_standardization.tsv
+
+results/outgroup_samples.txt
+results/outgroup_extraction_summary.tsv
+results/outgroup_extraction_failed.txt
+```
+
+The `consensus_masked` directory name is retained for compatibility with the ingroup workflow. Public outgroup genomes are complete standardized sequences, not reference-derived masked consensuses.
+
+---
+
+# 8. Filter samples by missing data
+
+The workflow creates three nested ingroup datasets:
+
+```text
+M40: percent N ≤40%
+M30: percent N ≤30%
+M20: percent N ≤20%
+```
+
+These thresholds allow explicit sensitivity analyses to missing data.
+
+## 8.1. Filter the 13-PCG data
+
+Run [`filter_from_cds.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_from_cds.sh).
+
+```bash
+bash BASH_SCRIPTS/filter_from_cds.sh
+```
+
+The script reads:
+
+```text
+results/extract_masked_cds_summary.tsv
+results/cds_coords.tsv
+CONFS/sample_list.txt
+```
+
+It verifies summary structure and recalculates missing-data percentages before writing:
+
+```text
+results/keep_samples_cds_le40.txt
+results/keep_samples_cds_le30.txt
+results/keep_samples_cds_le20.txt
+
+results/drop_samples_cds_gt40.txt
+results/drop_samples_cds_gt30.txt
+results/drop_samples_cds_gt20.txt
+
+results/filter_from_cds_report.tsv
+results/filter_from_cds_counts.tsv
+```
+
+## 8.2. Filter complete masked mitogenomes
+
+Run [`filter_from_con.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_from_con.sh).
+
+```bash
+bash BASH_SCRIPTS/filter_from_con.sh
+```
+
+The script reads and verifies the actual FASTAs against:
+
+```text
+results/masked_consensus_summary.tsv
+```
+
+It writes:
+
+```text
+results/keep_samples_cons_le40.txt
+results/keep_samples_cons_le30.txt
+results/keep_samples_cons_le20.txt
+
+results/drop_samples_cons_gt40.txt
+results/drop_samples_cons_gt30.txt
+results/drop_samples_cons_gt20.txt
+
+results/filter_from_con_report.tsv
+results/filter_from_con_counts.tsv
+```
+
+## 8.3. Optional matched-taxon intersections
+
+Run [`filter_intersection.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/filter_intersection.sh) only when you need a matched-taxon comparison between the 13-PCG and complete-mitogenome analyses.
+
+```bash
+bash BASH_SCRIPTS/filter_intersection.sh
+```
+
+Outputs:
+
+```text
+results/keep_samples_intersection_le40.txt
+results/keep_samples_intersection_le30.txt
+results/keep_samples_intersection_le20.txt
+results/filter_intersection_report.tsv
+results/filter_intersection_counts.tsv
+```
+
+> [!IMPORTANT]
+> Do not use the intersection lists as the default filter for the primary analyses. The 13-PCG and complete-mitogenome datasets should normally use their independent CDS and consensus keep lists. The intersection is an optional sensitivity analysis that holds taxon sampling constant.
+
+---
+
+# 9. Build unaligned analysis matrices
+
+## 9.1. Prepare gene-wise 13-PCG matrices
+
+Run [`concat_cds.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cds.sh).
+
+```bash
+bash BASH_SCRIPTS/concat_cds.sh
+```
+
+Despite its historical filename, this script does **not** immediately concatenate unaligned genes into a supermatrix. It validates every taxon and creates one unaligned multi-FASTA per gene for M40, M30, and M20.
+
+Outputs:
+
+```text
+results/cds_gene_matrices/
+├── M40/
+│   ├── taxa.txt
+│   └── unaligned_by_gene/
+│       ├── ND1.fasta
+│       ├── ND2.fasta
+│       ├── COX1.fasta
+│       └── ...
+├── M30/
+└── M20/
+```
+
+The script includes the configured outgroups and validates complete taxon and gene sets before finalizing the matrices.
+
+## 9.2. Prepare complete-mitogenome matrices
+
+Run [`concat_cons.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/concat_cons.sh).
+
+```bash
+bash BASH_SCRIPTS/concat_cons.sh
+```
+
+This creates unaligned complete-mitogenome multi-FASTA datasets for the independently filtered M40, M30, and M20 consensus sets.
+
+Outputs:
+
+```text
+results/consensus_matrices/M40/Sturnira_complete_mt_M40.unaligned.fasta
+results/consensus_matrices/M30/Sturnira_complete_mt_M30.unaligned.fasta
+results/consensus_matrices/M20/Sturnira_complete_mt_M20.unaligned.fasta
+```
+
+The complete-mitogenome analysis is complementary to, not independent from, the 13-PCG analysis because it contains the same protein-coding genes plus rRNAs, tRNAs, and noncoding regions.
+
+---
+
+# 10. Align the matrices
+
+## 10.1. Protein-guided, codon-aware 13-PCG alignment
+
+Run [`mafft_cds.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mafft_cds.slurm).
+
+```bash
+sbatch BASH_SCRIPTS/mafft_cds.slurm
+```
+
+This SLURM array processes M40, M30, and M20. For every gene, it:
+
+1. translates nucleotide CDS under vertebrate mitochondrial code 2;
+2. aligns amino-acid sequences with MAFFT;
+3. back-translates the protein alignment into codons;
+4. verifies codon gaps, frames, lengths, taxa, and stop codons;
+5. concatenates the 13 aligned genes in fixed biological order;
+6. writes a 39-partition gene-by-codon-position file.
+
+Example M40 outputs:
+
+```text
+results/alignments/cds/M40/
+├── protein_inputs/
+├── protein_alignments/
+├── codon_alignments/
+├── mafft_logs/
+├── Sturnira_13PCG_M40.codon_aligned.fasta
+├── Sturnira_13PCG_M40.partitions.txt
+├── Sturnira_13PCG_M40.coordinates.tsv
+├── Sturnira_13PCG_M40.alignment_qc.tsv
+├── coding_overlap_report.tsv
+├── alignment_strategy.tsv
+└── mafft_commands.tsv
+```
+
+The overlap report documents mitochondrial coding overlaps that are represented in more than one complete gene.
+
+## 10.2. Complete-mitogenome alignment
+
+Run [`mafft_cons.slurm`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/mafft_cons.slurm).
+
+```bash
+sbatch BASH_SCRIPTS/mafft_cons.slurm
+```
+
+This SLURM array aligns the M40, M30, and M20 complete-mitogenome matrices. It:
+
+- temporarily adds the reference as an alignment anchor;
+- retains an alignment containing the reference for annotation mapping;
+- removes the temporary anchor from the final phylogenetic matrix;
+- verifies that each ungapped sequence is unchanged;
+- writes a reference-coordinate-to-alignment-column map;
+- reports per-taxon and per-column missingness and gaps;
+- flags possible circular-origin or edge problems.
+
+Example M40 outputs:
+
+```text
+results/alignments/consensus/M40/
+├── Sturnira_complete_mt_M40.mafft.fasta
+├── Sturnira_complete_mt_M40.mafft.with_reference.fasta
+├── Sturnira_complete_mt_M40.reference_coordinate_map.tsv
+├── Sturnira_complete_mt_M40.alignment_qc.tsv
+├── Sturnira_complete_mt_M40.column_stats.tsv
+├── alignment_strategy.tsv
+└── mafft.log
+```
+
+No automatic trimming is performed. The complete-mitogenome alignment, especially the control region and other difficult noncoding regions, must be reviewed before phylogenetic inference.
+
+---
+
+# 11. Downstream phylogenetic inference
+
+The repository intentionally stops after validated alignment generation.
+
+For the primary 13-PCG analysis, use:
+
+```text
+results/alignments/cds/M40/Sturnira_13PCG_M40.codon_aligned.fasta
+results/alignments/cds/M40/Sturnira_13PCG_M40.partitions.txt
+```
+
+with corresponding M30 and M20 files for missing-data sensitivity analyses.
+
+For the optional complete-mitogenome analysis, use the reviewed matrices under:
+
+```text
+results/alignments/consensus/M40/
+results/alignments/consensus/M30/
+results/alignments/consensus/M20/
+```
+
+Choose and document the phylogenetic software, substitution-model strategy, partition treatment, support metrics, random seeds, and convergence or stability checks appropriate for your research question.
+
+---
+
+# 12. Retired scripts
+
+The following historical scripts are retired:
+
+- [`rename_fasta.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/rename_fasta.sh)
+- [`rename_fai.sh`](https://github.com/oleon12/mito_uce/blob/main/BASH_SCRIPTS/rename_fai.sh)
+
+Do not run them.
+
+All current production scripts write correct FASTA identifiers and indexes when the files are created. Post hoc renaming or routine reindexing could invalidate QC reports, conceal altered files, or destroy biological gene names.
+
+When a validated FASTA or index is missing or inconsistent, rerun the script that produced it.
+
+---
+
+# 13. Recommended execution order
+
+```bash
+# 1. Reference
+sbatch BASH_SCRIPTS/prep_ref.slurm
+sbatch BASH_SCRIPTS/cds_bed.slurm
+
+# 2. Mapping
+sbatch BASH_SCRIPTS/map_all_ref.slurm
+sbatch BASH_SCRIPTS/mapping_summary.slurm
+bash BASH_SCRIPTS/test_map_ref.sh
+
+# 3. Variant calling
+sbatch BASH_SCRIPTS/vcf_file.slurm
+bash BASH_SCRIPTS/test_vcf.sh
+
+# 4. Required masked consensus
+sbatch BASH_SCRIPTS/make_masked_consensus.slurm
+bash BASH_SCRIPTS/test_masked_consensus.sh
+
+# 5. Extract coding genes
+sbatch BASH_SCRIPTS/extract_cds.slurm
+
+# 6. Prepare public outgroups
+bash BASH_SCRIPTS/outgroup_from_gb.sh
+
+# 7. Validate all 13-PCG FASTAs
+bash BASH_SCRIPTS/test_extract_cds.sh
+
+# 8. Independent missing-data filters
+bash BASH_SCRIPTS/filter_from_cds.sh
+bash BASH_SCRIPTS/filter_from_con.sh
+
+# Optional matched-taxon sensitivity lists
+bash BASH_SCRIPTS/filter_intersection.sh
+
+# 9. Build matrices
+bash BASH_SCRIPTS/concat_cds.sh
+bash BASH_SCRIPTS/concat_cons.sh
+
+# 10. Align M40, M30, and M20
+sbatch BASH_SCRIPTS/mafft_cds.slurm
+sbatch BASH_SCRIPTS/mafft_cons.slurm
+```
+
+Optional diagnostic consensus:
+
+```bash
+sbatch BASH_SCRIPTS/make_consensus.slurm
+bash BASH_SCRIPTS/test_consensus.sh
+```
+
+---
+
+# 14. Primary reports to inspect
+
+Before downstream phylogenetic inference, inspect at least:
+
+```text
+results/reference_preparation/reference_qc.tsv
+results/mapping_summary.tsv
+results/vcf_summary.tsv
+results/masked_consensus_summary.tsv
+results/extract_masked_cds_summary.tsv
+results/outgroup_extraction_summary.tsv
+results/filter_from_cds_report.tsv
+results/filter_from_con_report.tsv
+results/tests/test_map_ref.tsv
+results/tests/test_vcf.tsv
+results/tests/test_masked_consensus.tsv
+results/tests/test_extract_cds.tsv
+```
+
+Every required production and regression-test row should have:
+
+```text
+status = passed
+```
+
+The M40, M30, and M20 trees or other downstream results should then be compared explicitly to evaluate sensitivity to missing data and taxon inclusion.
