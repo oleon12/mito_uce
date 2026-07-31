@@ -1,3 +1,0 @@
-# SAMPLE_ID  FASTA_PATH  GENBANK_PATH
-Artibeus_PP853570.1 raw_data/outgroups/Artibeus_PP853570.1.fasta raw_data/outgroups/Artibeus_PP853570.1.gb
-Glossophaga_NC_065682.1 raw_data/outgroups/Glossophaga_NC_065682.1.fasta raw_data/outgroups/Glossophaga_NC_065682.1.gb
