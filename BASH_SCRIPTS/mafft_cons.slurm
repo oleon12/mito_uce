@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=48:00:00
-#SBATCH --array=0-2
+#SBATCH --array=0-3
 #SBATCH --output=/scratch/odl7/sturnira_mito/LOG/mafft_complete_mt_%A_%a.out
 #SBATCH --error=/scratch/odl7/sturnira_mito/ERR_OUT/mafft_complete_mt_%A_%a.err
 #SBATCH --mail-user=odl7@scarletmail.rutgers.edu
@@ -17,8 +17,8 @@ set -euo pipefail
 ############################################
 # PURPOSE
 ############################################
-# Align complete masked mitochondrial genomes for the optional M40, M30, and
-# M20 whole-mitogenome analyses.
+# Align complete masked mitochondrial genomes for the optional M50, M40,
+# M30, and M20 whole-mitogenome analyses.
 #
 # The sequences must already:
 # - be in the same orientation;
@@ -30,7 +30,7 @@ set -euo pipefail
 # removes the anchor from the final phylogenetic matrix.
 #
 # No automatic trimming is performed. The control region and other difficult
-# regions must be inspected before the final whole-mitogenome IQ-TREE analysis.
+# regions must be inspected before downstream whole-mitogenome phylogenetic analysis.
 
 ############################################
 # CONFIGURATION
@@ -38,7 +38,7 @@ set -euo pipefail
 WORKDIR="/scratch/odl7/sturnira_mito"
 CONDA_ENV="mt_pipeline"
 
-THRESHOLDS=(40 30 20)
+THRESHOLDS=(50 40 30 20)
 THRESHOLD="${THRESHOLDS[$SLURM_ARRAY_TASK_ID]}"
 LABEL="M${THRESHOLD}"
 
@@ -644,4 +644,4 @@ echo "Matrix:           $MATRIX"
 echo "QC report:        $QC"
 echo "Coordinate map:   $COORDINATE_MAP"
 echo
-echo "Manual inspection is required before whole-mitogenome IQ-TREE analysis."
+echo "Manual inspection is required before downstream whole-mitogenome phylogenetic analysis."
