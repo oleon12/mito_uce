@@ -5,7 +5,7 @@ set -euo pipefail
 ############################################
 # PURPOSE
 ############################################
-# Create nested <=40%, <=30%, and <=20% missing-data sample lists for the
+# Create nested <=50%, <=40%, <=30%, and <=20% missing-data sample lists for the
 # optional complete-mitochondrial-consensus analysis.
 #
 # This script consumes the validated global summary that will be produced by
@@ -28,7 +28,7 @@ OUTDIR="results"
 REPORT="$OUTDIR/filter_from_con_report.tsv"
 COUNTS="$OUTDIR/filter_from_con_counts.tsv"
 
-THRESHOLDS=(40 30 20)
+THRESHOLDS=(50 40 30 20)
 
 ############################################
 # SETUP
@@ -101,9 +101,9 @@ report_path = Path(sys.argv[5])
 counts_path = Path(sys.argv[6])
 thresholds = [float(x) for x in sys.argv[7].split(",") if x]
 
-if thresholds != [40.0, 30.0, 20.0]:
+if thresholds != [50.0, 40.0, 30.0, 20.0]:
     raise SystemExit(
-        "ERROR: expected thresholds 40,30,20; observed {}."
+        "ERROR: expected thresholds 50,40,30,20; observed {}."
         .format(",".join(map(str, thresholds)))
     )
 
@@ -380,6 +380,11 @@ if not set(keep[30.0]).issubset(set(keep[40.0])):
         "The <=30% whole-consensus set is not a subset of the <=40% set."
     )
 
+if not set(keep[40.0]).issubset(set(keep[50.0])):
+    raise ValueError(
+        "The <=40% whole-consensus set is not a subset of the <=50% set."
+    )
+
 for threshold in thresholds:
     if set(keep[threshold]) & set(drop[threshold]):
         raise ValueError(
@@ -419,6 +424,7 @@ try:
             "N_count",
             "percent_N",
             "consensus_file",
+            "keep_le50",
             "keep_le40",
             "keep_le30",
             "keep_le20",
@@ -433,6 +439,7 @@ try:
         for row in validated:
             writer.writerow({
                 **row,
+                "keep_le50": "yes" if row["sample"] in keep[50.0] else "no",
                 "keep_le40": "yes" if row["sample"] in keep[40.0] else "no",
                 "keep_le30": "yes" if row["sample"] in keep[30.0] else "no",
                 "keep_le20": "yes" if row["sample"] in keep[20.0] else "no",
@@ -459,9 +466,11 @@ try:
             ])
 
     output_names = [
+        "keep_samples_cons_le50.txt",
         "keep_samples_cons_le40.txt",
         "keep_samples_cons_le30.txt",
         "keep_samples_cons_le20.txt",
+        "drop_samples_cons_gt50.txt",
         "drop_samples_cons_gt40.txt",
         "drop_samples_cons_gt30.txt",
         "drop_samples_cons_gt20.txt",
@@ -534,4 +543,4 @@ done
 
 echo
 echo "Whole-consensus filtering completed successfully."
-echo "The M20, M30, and M40 ingroup sets are validated and nested."
+echo "The M20, M30, M40, and M50 ingroup sets are validated and nested."
