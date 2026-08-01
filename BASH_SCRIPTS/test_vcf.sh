@@ -146,17 +146,44 @@ samples = read_samples(sample_list_path)
 
 with summary_path.open(newline="") as handle:
     reader = csv.DictReader(handle, delimiter="\t")
+    fieldnames = set(reader.fieldnames or [])
+
     required = {
-        "sample", "status", "vcf_file", "total_variant_records",
+        "sample",
+        "status",
+        "vcf_file",
         "pass_haploid_alt_snp_records",
     }
-    missing = required - set(reader.fieldnames or [])
+
+    missing = required - fieldnames
+
     if missing:
         raise ValueError(
             "VCF summary is missing columns: {}."
             .format(", ".join(sorted(missing)))
         )
-    summary = {row["sample"]: row for row in reader}
+
+    if not (
+        "total_variant_records" in fieldnames
+        or "total_records" in fieldnames
+    ):
+        raise ValueError(
+            "VCF summary must contain total_variant_records "
+            "or total_records."
+        )
+
+    summary = {}
+
+    for row in reader:
+        sample = row["sample"].strip()
+
+        if sample in summary:
+            raise ValueError(
+                "Duplicate VCF summary row for '{}'."
+                .format(sample)
+            )
+
+        summary[sample] = row
 
 if set(summary) != set(samples):
     raise ValueError("VCF summary and sample list differ.")
@@ -289,8 +316,35 @@ for sample in samples:
                 "CSI record count {} differs from queried count {}."
                 .format(indexed_records, total_records)
             )
-        if int(source["total_variant_records"]) != total_records:
-            raise ValueError("VCF summary total-record count mismatch.")
+        summary_total_text = (
+            source.get("total_variant_records", "").strip()
+        )
+
+        if not summary_total_text:
+            summary_total_text = (
+                source.get("total_records", "").strip()
+            )
+
+        if not summary_total_text:
+            raise ValueError(
+                "Both total_variant_records and total_records "
+                "are blank in vcf_summary.tsv."
+            )
+
+        try:
+            summary_total_records = int(summary_total_text)
+        except ValueError as exc:
+            raise ValueError(
+                "VCF summary total-record count is not an integer: {!r}."
+                .format(summary_total_text)
+            ) from exc
+
+        if summary_total_records != total_records:
+            raise ValueError(
+                "VCF summary total-record count {} differs from "
+                "the actual VCF count {}."
+                .format(summary_total_records, total_records)
+            )
         if int(source["pass_haploid_alt_snp_records"]) != pass_records:
             raise ValueError("VCF summary PASS-SNP count mismatch.")
 
