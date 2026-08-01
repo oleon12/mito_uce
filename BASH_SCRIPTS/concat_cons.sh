@@ -23,6 +23,10 @@ set -euo pipefail
 ############################################
 # CONFIGURATION
 ############################################
+CONDA_ENV="mt_pipeline"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "$CONDA_ENV"
+
 WORKDIR="/scratch/odl7/sturnira_mito"
 RESULTS_DIR="results"
 REF="references/S_ludovici_QCAZ_18312.fasta"
