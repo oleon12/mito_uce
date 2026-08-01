@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -7,7 +6,7 @@ set -euo pipefail
 # PURPOSE
 ############################################
 # Build one UNALIGNED multi-FASTA matrix per mitochondrial protein-coding gene
-# for the <=40%, <=30%, and <=20% missing-data taxon sets.
+# for the <=50%, <=40%, <=30%, and <=20% missing-data taxon sets.
 #
 # IMPORTANT:
 # - This script does NOT concatenate genes.
@@ -30,6 +29,7 @@ GENE_SUBDIR="genes_masked"
 GENE_SUFFIX="_13PCG_masked.fasta"
 
 # These lists will be produced by the revised filter_from_cds.sh.
+KEEP50="$RESULTS_DIR/keep_samples_cds_le50.txt"
 KEEP40="$RESULTS_DIR/keep_samples_cds_le40.txt"
 KEEP30="$RESULTS_DIR/keep_samples_cds_le30.txt"
 KEEP20="$RESULTS_DIR/keep_samples_cds_le20.txt"
@@ -86,13 +86,14 @@ except ImportError as exc:
 PY_CHECK
 
 RESULTS_DIR=$(realpath "$RESULTS_DIR")
+KEEP50=$(realpath "$KEEP50")
 KEEP40=$(realpath "$KEEP40")
 KEEP30=$(realpath "$KEEP30")
 KEEP20=$(realpath "$KEEP20")
 OUTROOT=$(realpath -m "$OUTROOT")
 REPORT=$(realpath -m "$REPORT")
 
-for file in "$KEEP40" "$KEEP30" "$KEEP20"; do
+for file in "$KEEP50" "$KEEP40" "$KEEP30" "$KEEP20"; do
     [[ -s "$file" ]] || {
         echo "ERROR: keep list not found or empty: $file" >&2
         exit 1
@@ -111,6 +112,7 @@ python3 - \
     "$RESULTS_DIR" \
     "$GENE_SUBDIR" \
     "$GENE_SUFFIX" \
+    "$KEEP50" \
     "$KEEP40" \
     "$KEEP30" \
     "$KEEP20" \
@@ -133,14 +135,15 @@ results_dir = Path(sys.argv[1])
 gene_subdir = sys.argv[2]
 gene_suffix = sys.argv[3]
 keep_paths = {
-    40: Path(sys.argv[4]),
-    30: Path(sys.argv[5]),
-    20: Path(sys.argv[6]),
+    50: Path(sys.argv[4]),
+    40: Path(sys.argv[5]),
+    30: Path(sys.argv[6]),
+    20: Path(sys.argv[7]),
 }
-outroot = Path(sys.argv[7])
-report_path = Path(sys.argv[8])
-outgroups = [x for x in sys.argv[9].split(",") if x]
-expected_genes = [x for x in sys.argv[10].split(",") if x]
+outroot = Path(sys.argv[8])
+report_path = Path(sys.argv[9])
+outgroups = [x for x in sys.argv[10].split(",") if x]
+expected_genes = [x for x in sys.argv[11].split(",") if x]
 
 allowed_bases = set("ACGTRYSWKMBDHVN")
 
@@ -284,9 +287,14 @@ if not set(keep[30]).issubset(set(keep[40])):
         "The <=30% keep list is not a subset of the <=40% keep list."
     )
 
+if not set(keep[40]).issubset(set(keep[50])):
+    raise ValueError(
+        "The <=40% keep list is not a subset of the <=50% keep list."
+    )
+
 all_ingroup = []
 seen_ingroup = set()
-for threshold in (40, 30, 20):
+for threshold in (50, 40, 30, 20):
     for sample in keep[threshold]:
         if sample not in seen_ingroup:
             seen_ingroup.add(sample)
@@ -334,7 +342,7 @@ temp_dir = Path(tempfile.mkdtemp(
 ))
 
 try:
-    for threshold in (40, 30, 20):
+    for threshold in (50, 40, 30, 20):
         label = "M{}".format(threshold)
         matrix_dir = temp_dir / label / "unaligned_by_gene"
         matrix_dir.mkdir(parents=True, exist_ok=True)
@@ -420,6 +428,7 @@ except Exception:
 
 print("Validated taxa: {}".format(len(all_taxa)))
 print("Outgroups: {}".format(", ".join(outgroups)))
+print("M50 ingroup taxa: {}".format(len(keep[50])))
 print("M40 ingroup taxa: {}".format(len(keep[40])))
 print("M30 ingroup taxa: {}".format(len(keep[30])))
 print("M20 ingroup taxa: {}".format(len(keep[20])))
@@ -431,7 +440,7 @@ PY
 ############################################
 # FINAL SHELL-LEVEL CHECKS
 ############################################
-for threshold in 40 30 20; do
+for threshold in 50 40 30 20; do
     MATRIX_DIR="$OUTROOT/M${threshold}/unaligned_by_gene"
     TAXA_FILE="$OUTROOT/M${threshold}/taxa.txt"
 
