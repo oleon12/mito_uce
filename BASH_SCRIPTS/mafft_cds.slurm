@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=24G
 #SBATCH --time=24:00:00
-#SBATCH --array=0-2
+#SBATCH --array=0-3
 #SBATCH --output=/scratch/odl7/sturnira_mito/LOG/mafft_13pcg_%A_%a.out
 #SBATCH --error=/scratch/odl7/sturnira_mito/ERR_OUT/mafft_13pcg_%A_%a.err
 #SBATCH --mail-user=odl7@scarletmail.rutgers.edu
@@ -26,7 +26,7 @@ set -euo pipefail
 #   -> concatenated nucleotide supermatrix
 #   -> 39 gene-by-codon-position partitions
 #
-# This script processes M40, M30, and M20 as a SLURM array. It consumes the
+# This script processes M50, M40, M30, and M20 as a SLURM array. It consumes the
 # unaligned gene matrices produced by the revised concat_cds.sh.
 
 ############################################
@@ -35,7 +35,7 @@ set -euo pipefail
 WORKDIR="/scratch/odl7/sturnira_mito"
 CONDA_ENV="mt_pipeline"
 
-THRESHOLDS=(40 30 20)
+THRESHOLDS=(50 40 30 20)
 THRESHOLD="${THRESHOLDS[$SLURM_ARRAY_TASK_ID]}"
 LABEL="M${THRESHOLD}"
 
@@ -48,8 +48,8 @@ TAXA_FILE="$INPUT_ROOT/$LABEL/taxa.txt"
 # are concatenated.
 CDS_BED="results/cds_coords.bed"
 
-# M40 determines one common MAFFT strategy for all three sensitivity datasets.
-M40_TAXA_FILE="$INPUT_ROOT/M40/taxa.txt"
+# M50 determines one common MAFFT strategy for all four sensitivity datasets.
+M50_TAXA_FILE="$INPUT_ROOT/M50/taxa.txt"
 
 OUTROOT="results/alignments/cds"
 OUTDIR="$OUTROOT/$LABEL"
@@ -110,7 +110,7 @@ mafft --version 2>&1
 ############################################
 INPUT_DIR=$(realpath "$INPUT_DIR")
 TAXA_FILE=$(realpath "$TAXA_FILE")
-M40_TAXA_FILE=$(realpath "$M40_TAXA_FILE")
+M50_TAXA_FILE=$(realpath "$M50_TAXA_FILE")
 CDS_BED=$(realpath "$CDS_BED")
 OUTROOT=$(realpath -m "$OUTROOT")
 OUTDIR=$(realpath -m "$OUTDIR")
@@ -120,7 +120,7 @@ OUTDIR=$(realpath -m "$OUTDIR")
     exit 1
 }
 
-for file in "$TAXA_FILE" "$M40_TAXA_FILE" "$CDS_BED"; do
+for file in "$TAXA_FILE" "$M50_TAXA_FILE" "$CDS_BED"; do
     [[ -s "$file" ]] || {
         echo "ERROR: required taxa list missing or empty: $file" >&2
         exit 1
@@ -141,16 +141,16 @@ GENES_TEXT=$(IFS=,; echo "${EXPECTED_GENES[*]}")
 ############################################
 # SELECT ONE STRATEGY FOR ALL THRESHOLDS
 ############################################
-M40_N_TAXA=$(grep -cv '^[[:space:]]*$' "$M40_TAXA_FILE" || true)
+M50_N_TAXA=$(grep -cv '^[[:space:]]*$' "$M50_TAXA_FILE" || true)
 
-if [[ "$M40_N_TAXA" -le 200 ]]; then
+if [[ "$M50_N_TAXA" -le 200 ]]; then
     STRATEGY="G-INS-i"
 else
     STRATEGY="FFT-NS-i-1000"
 fi
 
 echo "Dataset:             $LABEL"
-echo "M40 total taxa:      $M40_N_TAXA"
+echo "M50 total taxa:      $M50_N_TAXA"
 echo "Common strategy:     $STRATEGY"
 echo "Threads:             $THREADS"
 
