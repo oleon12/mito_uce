@@ -51,6 +51,9 @@ REPORT="$OUTROOT/concat_cons_validation.tsv"
 OUTGROUPS=(
     "Artibeus_PP853570.1"
     "Glossophaga_NC_065682.1"
+    "S_ludovici_QCAZ_18312"
+    "S_tildae_HG003314"
+    "S_tildae_NC_022427"
 )
 
 ############################################
